@@ -57,7 +57,7 @@ const AIResultPanel: React.FC<AIResultPanelProps> = ({
           </div>
           <p className="mt-2 text-sm leading-7 text-[var(--app-muted)]">
             제안을 검토한 뒤 전체 덮어쓰기 또는 본문 뒤에 이어붙이기를 선택할
-            수 있다.
+            수 있다. 적용하면 새 리비전으로 기록된다.
           </p>
         </div>
 

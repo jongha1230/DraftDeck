@@ -5,6 +5,7 @@ import { FileUp, X } from "lucide-react";
 interface SourceImportModalProps {
   isOpen: boolean;
   sourceInput: string;
+  sourceLabel: string;
   isAiLoading: boolean;
   onSourceInputChange: (value: string) => void;
   onClose: () => void;
@@ -15,6 +16,7 @@ interface SourceImportModalProps {
 export default function SourceImportModal({
   isOpen,
   sourceInput,
+  sourceLabel,
   isAiLoading,
   onSourceInputChange,
   onClose,
@@ -43,7 +45,7 @@ export default function SourceImportModal({
             </h3>
             <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">
               메모나 Markdown 파일을 붙여넣으면 초안 뼈대를 빠르게 만들 수
-              있습니다.
+              있습니다. 생성에 사용한 자료는 문서 기록에도 남깁니다.
             </p>
           </div>
           <button
@@ -58,6 +60,14 @@ export default function SourceImportModal({
         </div>
 
         <div className="mt-5">
+          <div className="mb-3 rounded-[18px] border border-[color:var(--app-line)] bg-[var(--app-surface-muted)] px-4 py-3">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--app-muted)]">
+              기록 이름
+            </p>
+            <p className="mt-1 text-sm font-medium text-[var(--app-ink)]">
+              {sourceLabel}
+            </p>
+          </div>
           <textarea
             className="app-scrollbar h-56 w-full resize-none rounded-[28px] border border-[color:var(--app-line)] bg-white p-5 text-sm leading-7 text-[var(--app-ink)] placeholder:text-[color:rgba(102,112,133,0.58)] focus:outline-none"
             placeholder="기존 메모나 자료를 붙여넣으세요. 예: 글 목적, 핵심 논점, 섹션 순서, 인용 메모"

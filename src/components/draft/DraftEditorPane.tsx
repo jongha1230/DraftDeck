@@ -33,6 +33,7 @@ export default function DraftEditorPane({
                 : "선택 없음"}
             </span>
             <span className="app-chip">{post.content.length.toLocaleString()}자</span>
+            <span className="app-chip">v{post.revision_number}</span>
           </div>
 
           <CustomButton

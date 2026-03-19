@@ -1,14 +1,17 @@
 import CustomButton from "@/components/ui/CustomButton";
-import { Eye, Loader2, PanelLeft, PanelRight } from "lucide-react";
+import { Download, Eye, Loader2, PanelLeft, PanelRight } from "lucide-react";
 
 interface DraftHeaderProps {
   title: string;
   hasActivePost: boolean;
   isSaving: boolean;
+  isDirty: boolean;
   isAiLoading: boolean;
   isAssistantOpen: boolean;
+  revisionNumber: number | null;
   onTitleChange: (value: string) => void;
   onPreviewOpen: () => void;
+  onExportMarkdown: () => void;
   onSidebarToggle: () => void;
   onAssistantToggle: () => void;
 }
@@ -17,10 +20,13 @@ export default function DraftHeader({
   title,
   hasActivePost,
   isSaving,
+  isDirty,
   isAiLoading,
   isAssistantOpen,
+  revisionNumber,
   onTitleChange,
   onPreviewOpen,
+  onExportMarkdown,
   onSidebarToggle,
   onAssistantToggle,
 }: DraftHeaderProps) {
@@ -59,6 +65,16 @@ export default function DraftHeader({
               <Eye size={15} />
               미리보기
             </CustomButton>
+            <CustomButton
+              variant="ghost"
+              size="sm"
+              onClick={onExportMarkdown}
+              disabled={!hasActivePost || isAiLoading}
+              className="gap-2"
+            >
+              <Download size={15} />
+              Markdown 내보내기
+            </CustomButton>
 
             <CustomButton
               size="sm"
@@ -95,11 +111,13 @@ export default function DraftHeader({
                     저장 중
                   </>
                 ) : (
-                  "자동 저장됨"
+                  isDirty ? "저장 대기 중" : "자동 저장됨"
                 )}
               </span>
               <span className="hidden h-4 w-px bg-[var(--app-line)] sm:block" />
-              <span>본문 편집에 집중하고 필요한 도구만 오른쪽에서 엽니다.</span>
+              <span>v{revisionNumber ?? 1}</span>
+              <span className="hidden h-4 w-px bg-[var(--app-line)] sm:block" />
+              <span>자료, AI 기록, 리비전을 오른쪽 패널에서 함께 확인합니다.</span>
             </div>
           </div>
         ) : (

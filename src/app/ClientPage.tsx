@@ -30,13 +30,17 @@ export default function ClientPage({
     notifications,
     activePostId,
     activePost,
+    activeArtifacts,
     isSaving,
+    isDirty,
     isAiLoading,
     aiResultText,
     selectionText,
     sourceInput,
+    sourceLabel,
     isSidebarOpen,
     isAssistantOpen,
+    isArtifactsLoading,
     assistantPanelMode,
     isSourceModalOpen,
     isPreviewOpen,
@@ -66,6 +70,7 @@ export default function ClientPage({
     handleOpenImport,
     handleCloseImport,
     handleCloseAIResult,
+    handleExportMarkdown,
   } = useDraftPageController({ initialPosts, isPreview });
 
   useUnsavedChanges();
@@ -91,10 +96,13 @@ export default function ClientPage({
               title={activePost?.title || ""}
               hasActivePost={!!activePost}
               isSaving={isSaving}
+              isDirty={isDirty}
               isAiLoading={isAiLoading}
               isAssistantOpen={isAssistantOpen}
+              revisionNumber={activePost?.revision_number ?? null}
               onTitleChange={handleTitleChange}
               onPreviewOpen={() => handlePreviewOpen("preview")}
+              onExportMarkdown={handleExportMarkdown}
               onSidebarToggle={toggleSidebar}
               onAssistantToggle={() =>
                 isAssistantOpen
@@ -134,12 +142,16 @@ export default function ClientPage({
                 <AssistantPanel
                   isOpen={isAssistantOpen}
                   mode={assistantPanelMode}
+                  artifacts={activeArtifacts}
+                  revisionNumber={activePost.revision_number}
                   selectionText={selectionText}
                   isAiLoading={isAiLoading}
+                  isArtifactsLoading={isArtifactsLoading}
                   aiResultText={aiResultText}
                   onClose={closeAssistantPanel}
                   onOpenImport={handleOpenImport}
                   onOpenPreview={() => handlePreviewOpen("preview")}
+                  onExportMarkdown={handleExportMarkdown}
                   onRunAction={(action, selection) =>
                     void handleAIAction(action, selection)
                   }
@@ -156,6 +168,7 @@ export default function ClientPage({
       <SourceImportModal
         isOpen={isSourceModalOpen}
         sourceInput={sourceInput}
+        sourceLabel={sourceLabel}
         isAiLoading={isAiLoading}
         onSourceInputChange={setSourceInput}
         onClose={handleCloseImport}

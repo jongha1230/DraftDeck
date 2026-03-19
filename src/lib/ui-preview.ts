@@ -1,11 +1,30 @@
-import { AIActionType, Post } from "@/types";
+import {
+  AIRun,
+  AIRunStatus,
+  AIActionType,
+  DraftArtifacts,
+  DraftRevision,
+  DraftRevisionTrigger,
+  DraftSource,
+  DraftSourceKind,
+  Post,
+} from "@/types";
 
 export interface PreviewUser {
   email: string;
   avatarUrl?: string;
 }
 
+export interface PreviewSessionData {
+  posts: Post[];
+  activePostId: string | null;
+  artifactsByPostId: Record<string, DraftArtifacts>;
+}
+
 export const UI_PREVIEW_QUERY_KEY = "draftdeck-preview";
+const PREVIEW_STORAGE_KEY = "draftdeck-preview-session";
+const PREVIEW_USER_ID = "preview-user";
+
 const isPreviewEnvEnabled = () =>
   process.env.NEXT_PUBLIC_DRAFTDECK_UI_PREVIEW === "1";
 
@@ -19,21 +38,22 @@ const isClientQueryPreviewEnabled = () => {
   return searchParams.get(UI_PREVIEW_QUERY_KEY) === "1";
 };
 
-export const UI_PREVIEW_ENABLED = isPreviewEnvEnabled() || isClientQueryPreviewEnabled();
+export const UI_PREVIEW_ENABLED =
+  isPreviewEnvEnabled() || isClientQueryPreviewEnabled();
 
 export function isServerUiPreviewEnabled(value?: string | string[]) {
   const resolved = Array.isArray(value) ? value[0] : value;
+  const isPreviewRuntime =
+    process.env.NODE_ENV !== "production" || process.env.VERCEL_ENV === "preview";
 
-  return isPreviewEnvEnabled() || (process.env.NODE_ENV !== "production" && resolved === "1");
+  return isPreviewEnvEnabled() || (isPreviewRuntime && resolved === "1");
 }
-
-const PREVIEW_USER_ID = "preview-user";
-
-const now = Date.now();
 
 export const PREVIEW_USER: PreviewUser = {
   email: "preview@draftdeck.local",
 };
+
+const now = Date.now();
 
 export const PREVIEW_POSTS: Post[] = [
   {
@@ -53,6 +73,7 @@ export const PREVIEW_POSTS: Post[] = [
 - 저장 상태는 조용하게 알리고, 편집 면적은 넓게 유지한다.
 `,
     is_published: false,
+    revision_number: 3,
     created_at: new Date(now - 1000 * 60 * 60 * 24).toISOString(),
     updated_at: new Date(now - 1000 * 60 * 25).toISOString(),
   },
@@ -71,32 +92,214 @@ export const PREVIEW_POSTS: Post[] = [
 3. 모바일 패널 전환 방식 정리
 `,
     is_published: false,
+    revision_number: 2,
     created_at: new Date(now - 1000 * 60 * 60 * 48).toISOString(),
     updated_at: new Date(now - 1000 * 60 * 60 * 4).toISOString(),
   },
 ];
 
+const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
+  "preview-post-1": {
+    sources: [
+      {
+        id: "preview-source-1",
+        post_id: "preview-post-1",
+        user_id: PREVIEW_USER_ID,
+        kind: DraftSourceKind.PASTE,
+        label: "서비스 경계 메모",
+        content:
+          "현재 DraftDeck은 상태와 서버 로직이 한 훅에 뭉쳐 있어서 설명은 가능하지만 확장 신호가 약하다.",
+        content_length: 59,
+        created_at: new Date(now - 1000 * 60 * 80).toISOString(),
+      },
+    ],
+    revisions: [
+      {
+        id: "preview-revision-3",
+        post_id: "preview-post-1",
+        user_id: PREVIEW_USER_ID,
+        revision_number: 3,
+        title: "기술 설계 초안",
+        content: PREVIEW_POSTS[0].content,
+        trigger: DraftRevisionTrigger.AI_APPLY,
+        ai_run_id: "preview-airun-1",
+        source_id: "preview-source-1",
+        created_at: new Date(now - 1000 * 60 * 25).toISOString(),
+      },
+      {
+        id: "preview-revision-2",
+        post_id: "preview-post-1",
+        user_id: PREVIEW_USER_ID,
+        revision_number: 2,
+        title: "기술 설계 초안",
+        content: "# 서비스 경계 다시 정리하기\n\n기존 구조를 기록했다.",
+        trigger: DraftRevisionTrigger.AUTOSAVE,
+        ai_run_id: null,
+        source_id: null,
+        created_at: new Date(now - 1000 * 60 * 90).toISOString(),
+      },
+    ],
+    aiRuns: [
+      {
+        id: "preview-airun-1",
+        post_id: "preview-post-1",
+        user_id: PREVIEW_USER_ID,
+        action: AIActionType.DEVELOPER_REWRITE,
+        status: AIRunStatus.SUCCESS,
+        input_excerpt: "현재 DraftDeck은 상태와 서버 로직이 한 훅에 뭉쳐 있어서...",
+        output_text:
+          "DraftDeck의 현재 구현은 기능은 동작하지만 상태와 서버 경계가 밀집돼 있다.",
+        selection_text:
+          "현재 DraftDeck은 상태와 서버 로직이 한 훅에 뭉쳐 있어서 설명은 가능하지만 확장 신호가 약하다.",
+        source_id: "preview-source-1",
+        error_message: null,
+        created_at: new Date(now - 1000 * 60 * 30).toISOString(),
+      },
+    ],
+  },
+  "preview-post-2": {
+    sources: [],
+    revisions: [
+      {
+        id: "preview-revision-4",
+        post_id: "preview-post-2",
+        user_id: PREVIEW_USER_ID,
+        revision_number: 2,
+        title: "릴리즈 노트 초안",
+        content: PREVIEW_POSTS[1].content,
+        trigger: DraftRevisionTrigger.AUTOSAVE,
+        ai_run_id: null,
+        source_id: null,
+        created_at: new Date(now - 1000 * 60 * 60 * 4).toISOString(),
+      },
+    ],
+    aiRuns: [],
+  },
+};
+
+export function createDefaultPreviewSession(): PreviewSessionData {
+  return {
+    posts: structuredClone(PREVIEW_POSTS),
+    activePostId: PREVIEW_POSTS[0]?.id ?? null,
+    artifactsByPostId: structuredClone(PREVIEW_ARTIFACTS),
+  };
+}
+
+export function readPreviewSession() {
+  if (typeof window === "undefined") {
+    return createDefaultPreviewSession();
+  }
+
+  const raw = window.localStorage.getItem(PREVIEW_STORAGE_KEY);
+
+  if (!raw) {
+    return createDefaultPreviewSession();
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as PreviewSessionData;
+
+    return {
+      posts: parsed.posts?.length ? parsed.posts : createDefaultPreviewSession().posts,
+      activePostId:
+        parsed.activePostId ??
+        parsed.posts?.[0]?.id ??
+        createDefaultPreviewSession().activePostId,
+      artifactsByPostId:
+        parsed.artifactsByPostId ?? createDefaultPreviewSession().artifactsByPostId,
+    };
+  } catch {
+    return createDefaultPreviewSession();
+  }
+}
+
+export function writePreviewSession(data: PreviewSessionData) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(data));
+}
+
 export function createPreviewPost(): Post {
   const timestamp = new Date().toISOString();
 
   return {
-    id:
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `preview-${Date.now()}`,
+    id: crypto.randomUUID(),
     user_id: PREVIEW_USER_ID,
     title: "새 문서",
     content: "",
     is_published: false,
+    revision_number: 1,
     created_at: timestamp,
     updated_at: timestamp,
   };
 }
 
-export function createPreviewAIResult(
-  action: AIActionType,
-  input: string,
-): string {
+export function createPreviewSource(input: {
+  postId: string;
+  label: string;
+  content: string;
+  kind: DraftSourceKind;
+}): DraftSource {
+  return {
+    id: crypto.randomUUID(),
+    post_id: input.postId,
+    user_id: PREVIEW_USER_ID,
+    kind: input.kind,
+    label: input.label,
+    content: input.content,
+    content_length: input.content.trim().length,
+    created_at: new Date().toISOString(),
+  };
+}
+
+export function createPreviewAIRun(input: {
+  action: AIActionType;
+  postId?: string | null;
+  text: string;
+  outputText: string;
+  selectionText?: string | null;
+  sourceId?: string | null;
+  status?: AIRunStatus;
+  errorMessage?: string | null;
+}): AIRun {
+  return {
+    id: crypto.randomUUID(),
+    post_id: input.postId ?? null,
+    user_id: PREVIEW_USER_ID,
+    action: input.action,
+    status: input.status ?? AIRunStatus.SUCCESS,
+    input_excerpt: input.text.trim().slice(0, 180),
+    output_text: input.outputText,
+    selection_text: input.selectionText ?? null,
+    source_id: input.sourceId ?? null,
+    error_message: input.errorMessage ?? null,
+    created_at: new Date().toISOString(),
+  };
+}
+
+export function createPreviewRevision(input: {
+  post: Post;
+  trigger: DraftRevisionTrigger;
+  aiRunId?: string | null;
+  sourceId?: string | null;
+}): DraftRevision {
+  return {
+    id: crypto.randomUUID(),
+    post_id: input.post.id,
+    user_id: PREVIEW_USER_ID,
+    revision_number: input.post.revision_number,
+    title: input.post.title,
+    content: input.post.content,
+    trigger: input.trigger,
+    ai_run_id: input.aiRunId ?? null,
+    source_id: input.sourceId ?? null,
+    created_at: new Date().toISOString(),
+  };
+}
+
+export function createPreviewAIResult(action: AIActionType, input: string): string {
   const trimmed = input.trim();
 
   if (!trimmed) {
@@ -111,7 +314,7 @@ export function createPreviewAIResult(
     case AIActionType.TRANSLATE:
       return `## 자연스러운 번역 preview\n\n${trimmed.slice(0, 220)}\n\n문맥 유지 중심으로 번역 결과를 확인하는 로컬 preview다.`;
     case AIActionType.SOURCE_TO_DRAFT:
-      return `# preview 초안 생성 결과\n\n## 입력 요약\n\n${trimmed.slice(0, 220)}\n\n## 구성 제안\n\n1. 배경\n2. 핵심 문제\n3. 해결 방향\n4. 다음 단계\n\n## 첫 문단\n\n입력한 자료를 기반으로 초안의 뼈대를 먼저 세우고, 이후 편집 화면에서 세부 문장을 채우는 흐름을 가정했다.`;
+      return `# 초안 구조 제안\n\n## 핵심 배경\n\n${trimmed.slice(0, 220)}\n\n## 권장 구성\n\n1. 문제 정의\n2. 현재 제약\n3. 해결 접근\n4. 검증 계획\n\n## 시작 문단\n\n입력한 자료를 기반으로 초안의 뼈대를 먼저 세우고, 이후 편집 화면에서 세부 문장을 채우는 흐름을 가정했다.`;
     default:
       return trimmed;
   }

@@ -2,9 +2,9 @@ import LoginButton from "@/components/auth/LoginButton";
 import { CheckCircle2, FileText } from "lucide-react";
 
 const POINTS = [
-  "최근 문서를 바로 이어서 작성할 수 있습니다.",
-  "선택한 문장만 요약, 번역, 리라이트할 수 있습니다.",
-  "자동 저장과 미리보기가 같은 흐름 안에 있습니다.",
+  "붙여넣은 자료와 파일을 초안 시작점으로 남길 수 있습니다.",
+  "선택한 문장만 요약, 번역, 리라이트하고 실행 기록을 확인할 수 있습니다.",
+  "자동 저장, revision 기록, Markdown export가 한 흐름 안에 있습니다.",
 ];
 
 export default function LoginPage() {
@@ -18,11 +18,12 @@ export default function LoginPage() {
                 DraftDeck
               </p>
               <h1 className="mt-4 text-5xl font-semibold tracking-[-0.05em] text-[var(--app-ink)]">
-                로그인 후 바로 문서 작성으로 들어갑니다
+                기술 글 초안을 자료에서 바로 시작합니다
               </h1>
               <p className="mt-5 text-base leading-8 text-[var(--app-muted)]">
-                소개 화면보다 작업 화면이 먼저 보이도록 구성했습니다. 최근 문서,
-                본문 편집, 보조 도구가 한 흐름 안에서 이어집니다.
+                DraftDeck은 범용 AI writer가 아니라 기술 글 초안 워크플로우에
+                맞춘 작업 공간입니다. 자료 가져오기, 초안 생성, 선택 기반
+                리라이트, 저장 기록 확인까지 같은 화면에서 이어집니다.
               </p>
             </div>
 
@@ -52,7 +53,7 @@ export default function LoginPage() {
                   DraftDeck
                 </p>
                 <p className="mt-1 text-sm text-[var(--app-muted)]">
-                  개인 문서 작업 공간
+                  technical draft workflow
                 </p>
               </div>
             </div>
@@ -61,8 +62,8 @@ export default function LoginPage() {
               바로 시작
             </h2>
             <p className="mt-3 text-sm leading-7 text-[var(--app-muted)] sm:text-base">
-              Google 계정으로 로그인하면 최근 문서와 새 초안 작성 화면으로 바로
-              들어갑니다.
+              Google 계정으로 로그인하면 자료 기반 초안 생성, revision 기록,
+              Markdown export가 있는 작업 화면으로 바로 들어갑니다.
             </p>
 
             <div className="mt-8 space-y-3 rounded-[26px] border border-[color:var(--app-line)] bg-white p-5">

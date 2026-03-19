@@ -1,31 +1,36 @@
-import {
-  createPostAction,
-  deletePostAction,
-  updatePostAction,
-} from "@/app/actions";
-import { UI_PREVIEW_ENABLED, createPreviewPost } from "@/lib/ui-preview";
-import { AppToast, Post, ToastTone } from "@/types";
+import { AppToast, DraftArtifacts, DraftSource, DraftRevision, AIRun, AIResultState, Post, ToastTone } from "@/types";
 import { create } from "zustand";
 
 interface DraftState {
   posts: Post[];
   activePostId: string | null;
+  artifactsByPostId: Record<string, DraftArtifacts>;
+  loadedArtifactPostIds: Record<string, boolean>;
   isSaving: boolean;
   isDirty: boolean;
   isAiLoading: boolean;
-  aiResultText: string;
+  aiResult: AIResultState | null;
   notifications: AppToast[];
 
+  hydrateSession: (input: {
+    posts: Post[];
+    activePostId: string | null;
+    artifactsByPostId?: Record<string, DraftArtifacts>;
+  }) => void;
   setPosts: (posts: Post[]) => void;
+  prependPost: (post: Post) => void;
+  upsertPost: (post: Post) => void;
+  removePost: (id: string) => void;
   setActivePostId: (id: string | null) => void;
+  setArtifacts: (postId: string, artifacts: DraftArtifacts) => void;
+  markArtifactsLoaded: (postId: string) => void;
+  prependSource: (postId: string, source: DraftSource) => void;
+  prependRevision: (postId: string, revision: DraftRevision) => void;
+  prependAIRun: (postId: string, run: AIRun) => void;
+  setIsSaving: (saving: boolean) => void;
   setIsDirty: (dirty: boolean) => void;
-
-  createPost: () => Promise<void>;
-  updatePost: (id: string, updates: Partial<Post>) => Promise<void>;
-  deletePost: (id: string) => Promise<void>;
-
   setAiLoading: (loading: boolean) => void;
-  setAiResultText: (text: string) => void;
+  setAiResult: (result: AIResultState | null) => void;
   resetAiState: () => void;
   pushNotification: (
     message: string,
@@ -35,11 +40,16 @@ interface DraftState {
   dismissNotification: (id: string) => void;
 }
 
-const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const notificationTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 const createNotificationId = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const emptyArtifacts = (): DraftArtifacts => ({
+  sources: [],
+  revisions: [],
+  aiRuns: [],
+});
 
 export const useDraftStore = create<DraftState>((set) => {
   const dismissNotification = (id: string) => {
@@ -75,154 +85,137 @@ export const useDraftStore = create<DraftState>((set) => {
   return {
     posts: [],
     activePostId: null,
+    artifactsByPostId: {},
+    loadedArtifactPostIds: {},
     isSaving: false,
     isDirty: false,
     isAiLoading: false,
-    aiResultText: "",
+    aiResult: null,
     notifications: [],
 
-    setPosts: (posts) => set({ posts }),
+    hydrateSession: ({ posts, activePostId, artifactsByPostId = {} }) =>
+      set({
+        posts,
+        activePostId,
+        artifactsByPostId,
+        loadedArtifactPostIds: Object.fromEntries(
+          Object.keys(artifactsByPostId).map((postId) => [postId, true]),
+        ),
+        isDirty: false,
+        isSaving: false,
+        isAiLoading: false,
+        aiResult: null,
+      }),
 
-    setActivePostId: (id) => {
+    setPosts: (posts) => set({ posts }),
+    prependPost: (post) =>
+      set((state) => ({
+        posts: [post, ...state.posts],
+        activePostId: post.id,
+      })),
+    upsertPost: (post) =>
+      set((state) => ({
+        posts: state.posts.some((item) => item.id === post.id)
+          ? state.posts.map((item) => (item.id === post.id ? post : item))
+          : [post, ...state.posts],
+      })),
+    removePost: (id) =>
+      set((state) => {
+        const nextPosts = state.posts.filter((post) => post.id !== id);
+        const { [id]: removedArtifacts, ...restArtifacts } = state.artifactsByPostId;
+        const { [id]: removedLoaded, ...restLoaded } = state.loadedArtifactPostIds;
+        void removedArtifacts;
+        void removedLoaded;
+
+        return {
+          posts: nextPosts,
+          activePostId:
+            state.activePostId === id ? nextPosts[0]?.id ?? null : state.activePostId,
+          artifactsByPostId: restArtifacts,
+          loadedArtifactPostIds: restLoaded,
+          isDirty: false,
+        };
+      }),
+    setActivePostId: (id) =>
       set({
         activePostId: id,
-        aiResultText: "",
+        aiResult: null,
         isAiLoading: false,
-        isDirty: false,
-      });
-    },
-
-    setIsDirty: (dirty) => set({ isDirty: dirty }),
-
-    createPost: async () => {
-      try {
-        set({ isSaving: true });
-
-        if (UI_PREVIEW_ENABLED) {
-          const newPost = createPreviewPost();
-
-          set((state) => ({
-            posts: [newPost, ...state.posts],
-            activePostId: newPost.id,
-            isDirty: false,
-            isSaving: false,
-            aiResultText: "",
-            isAiLoading: false,
-          }));
-
-          pushNotification(
-            "preview 모드에서 새 문서를 로컬 상태로 만들었습니다.",
-            "success",
-            "UI preview",
-          );
-          return;
-        }
-
-        const newPost = (await createPostAction()) as Post;
-
-        set((state) => ({
-          posts: [newPost, ...state.posts],
-          activePostId: newPost.id,
-          isDirty: false,
-          isSaving: false,
-          aiResultText: "",
-          isAiLoading: false,
-        }));
-      } catch (e) {
-        console.error(e);
-        pushNotification(
-          "새 문서를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.",
-          "error",
-          "문서 생성 실패",
-        );
-        set({ isSaving: false });
-      }
-    },
-
-    updatePost: async (id, updates) => {
-      set({ isSaving: true, isDirty: true });
+      }),
+    setArtifacts: (postId, artifacts) =>
       set((state) => ({
-        posts: state.posts.map((p) =>
-          p.id === id
-            ? { ...p, ...updates, updated_at: new Date().toISOString() }
-            : p,
-        ),
-      }));
-
-      const prevTimer = saveTimers.get(id);
-      if (prevTimer) {
-        clearTimeout(prevTimer);
-      }
-
-      const timer = setTimeout(async () => {
-        try {
-          if (UI_PREVIEW_ENABLED) {
-            set({ isSaving: false, isDirty: false });
-            return;
-          }
-
-          await updatePostAction(id, updates);
-          set({ isSaving: false, isDirty: false });
-        } catch (e) {
-          console.error("저장 실패:", e);
-          set({ isSaving: false });
-          pushNotification(
-            "자동 저장에 실패했습니다. 네트워크 연결과 로그인 상태를 확인해 주세요.",
-            "error",
-            "저장 실패",
-          );
-        } finally {
-          saveTimers.delete(id);
-        }
-      }, 1000);
-
-      saveTimers.set(id, timer);
-    },
-
-    deletePost: async (id) => {
-      const timer = saveTimers.get(id);
-      if (timer) {
-        clearTimeout(timer);
-        saveTimers.delete(id);
-      }
-
-      try {
-        if (!UI_PREVIEW_ENABLED) {
-          await deletePostAction(id);
-        }
-
-        set((state) => {
-          const newPosts = state.posts.filter((p) => p.id !== id);
-          return {
-            posts: newPosts,
-            activePostId:
-              state.activePostId === id
-                ? newPosts[0]?.id || null
-                : state.activePostId,
-            isDirty: false,
-          };
-        });
-
-        pushNotification(
-          UI_PREVIEW_ENABLED
-            ? "preview 모드에서 초안을 로컬 목록에서 제거했습니다."
-            : "초안을 목록에서 제거했습니다.",
-          "success",
-          "문서 삭제 완료",
-        );
-      } catch (e) {
-        console.error(e);
-        pushNotification(
-          "초안을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-          "error",
-          "삭제 실패",
-        );
-      }
-    },
-
+        artifactsByPostId: {
+          ...state.artifactsByPostId,
+          [postId]: artifacts,
+        },
+        loadedArtifactPostIds: {
+          ...state.loadedArtifactPostIds,
+          [postId]: true,
+        },
+      })),
+    markArtifactsLoaded: (postId) =>
+      set((state) => ({
+        loadedArtifactPostIds: {
+          ...state.loadedArtifactPostIds,
+          [postId]: true,
+        },
+      })),
+    prependSource: (postId, source) =>
+      set((state) => ({
+        artifactsByPostId: {
+          ...state.artifactsByPostId,
+          [postId]: {
+            ...(state.artifactsByPostId[postId] ?? emptyArtifacts()),
+            sources: [
+              source,
+              ...(state.artifactsByPostId[postId]?.sources ?? []),
+            ].slice(0, 5),
+          },
+        },
+        loadedArtifactPostIds: {
+          ...state.loadedArtifactPostIds,
+          [postId]: true,
+        },
+      })),
+    prependRevision: (postId, revision) =>
+      set((state) => ({
+        artifactsByPostId: {
+          ...state.artifactsByPostId,
+          [postId]: {
+            ...(state.artifactsByPostId[postId] ?? emptyArtifacts()),
+            revisions: [
+              revision,
+              ...(state.artifactsByPostId[postId]?.revisions ?? []),
+            ].slice(0, 6),
+          },
+        },
+        loadedArtifactPostIds: {
+          ...state.loadedArtifactPostIds,
+          [postId]: true,
+        },
+      })),
+    prependAIRun: (postId, run) =>
+      set((state) => ({
+        artifactsByPostId: {
+          ...state.artifactsByPostId,
+          [postId]: {
+            ...(state.artifactsByPostId[postId] ?? emptyArtifacts()),
+            aiRuns: [run, ...(state.artifactsByPostId[postId]?.aiRuns ?? [])].slice(
+              0,
+              6,
+            ),
+          },
+        },
+        loadedArtifactPostIds: {
+          ...state.loadedArtifactPostIds,
+          [postId]: true,
+        },
+      })),
+    setIsSaving: (saving) => set({ isSaving: saving }),
+    setIsDirty: (dirty) => set({ isDirty: dirty }),
     setAiLoading: (loading) => set({ isAiLoading: loading }),
-    setAiResultText: (text) => set({ aiResultText: text }),
-    resetAiState: () => set({ isAiLoading: false, aiResultText: "" }),
+    setAiResult: (result) => set({ aiResult: result }),
+    resetAiState: () => set({ isAiLoading: false, aiResult: null }),
     pushNotification,
     dismissNotification,
   };

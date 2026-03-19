@@ -1,86 +1,114 @@
 # DraftDeck
 
-DraftDeck은 기술 글 초안을 빠르게 만들고 다듬기 위해 만든 개인용 writing workspace입니다.  
-포트폴리오 프로젝트지만, 단순 데모보다 실제 작성 흐름을 줄이는 데 초점을 뒀습니다.
+DraftDeck은 범용 AI writer가 아니라 `기술 글 초안 워크플로우`를 위한 개인용 writing workspace입니다.  
+핵심은 자료를 가져와 초안으로 구조화하고, 선택 기반 AI 리라이트와 autosave, revision 기록, Markdown export까지 한 흐름으로 이어주는 것입니다.
 
-## 핵심 문제
+- Live app: [https://draft-flow-one.vercel.app](https://draft-flow-one.vercel.app)
+- Repo: [https://github.com/jongha1230/DraftDeck](https://github.com/jongha1230/DraftDeck)
+- Architecture note: [docs/architecture.md](./docs/architecture.md)
+- QA checklist: [docs/qa-checklist.md](./docs/qa-checklist.md)
+- Migration: [supabase/migrations/20260319_draftdeck_supporting_upgrade.sql](./supabase/migrations/20260319_draftdeck_supporting_upgrade.sql)
 
-기술 글을 쓸 때 반복적으로 시간이 오래 걸리는 구간은 아래였습니다.
+## Product Focus
 
-- 메모와 자료를 초안 구조로 옮기기
-- 이미 쓴 문장을 계속 정리하고 리라이트하기
-- 저장, 미리보기, 수정 사이를 오가며 집중이 끊기기
+DraftDeck이 해결하려는 문제는 단순합니다.
 
-DraftDeck은 이 병목을 줄이기 위해 초안 작성, 자동 저장, 선택 기반 AI 보조를 한 화면 안에 묶었습니다.
+- 메모와 자료를 초안 구조로 옮기는 데 시간이 오래 걸린다.
+- 이미 쓴 문장을 요약, 번역, 리라이트하는 동안 맥락이 자주 끊긴다.
+- 저장, 미리보기, 수정 이력이 분리돼 있으면 작성 흐름을 설명하기 어렵다.
 
-## 현재 구현 범위
+그래서 제품 범위를 아래로 고정했습니다.
 
-- Google OAuth 로그인
-- 사용자별 문서 CRUD
-- 자동 저장
-- 선택 영역 기반 AI 액션
-  - 요약
-  - 번역
-  - 개발자 톤 리라이트
-  - 외부 텍스트 기반 초안 생성
-- Markdown 미리보기
-- 저장 중 이탈 경고
-- 개발용 UI preview 모드
+1. source import
+2. source 기반 draft generation
+3. selection-based AI editing
+4. autosave + revision tracking
+5. Markdown export
 
-## 설계 방향
+협업, 멀티디바이스 sync, analytics, PDF export는 이번 범위에서 제외했습니다.
 
-### 1. 화면과 상태 분리
+## Screenshots
 
-- `ClientPage`는 레이아웃 조립 중심
-- 상태와 액션은 `useDraftPageController`에 집중
-- draft, editor, layout 단위로 UI 컴포넌트 분리
+### Login
 
-기능 확장 시 수정 범위를 줄이기 위한 구조입니다.
+![DraftDeck login](./docs/assets/login.png)
 
-### 2. 서버 액션 경계 유지
+### Workspace
 
-- AI 요청과 DB 쓰기는 서버 액션에서 처리
-- 클라이언트는 입력, 상태 반영, 렌더링에 집중
-- 인증과 입력 제약은 서버에서 검증
+![DraftDeck workspace](./docs/assets/workspace.png)
 
-### 3. 실제 제품처럼 보이는 편집 흐름
+### Source Import
 
-- 중앙 영역은 본문 편집을 우선
-- 사이드바는 최근 문서와 새 초안 진입만 담당
-- 오른쪽 도구 패널은 본문보다 조용하게 유지
+![DraftDeck source import](./docs/assets/source-import.png)
 
-## 트러블슈팅
+### AI Apply
 
-### 미리보기와 수식 렌더링
+![DraftDeck AI result](./docs/assets/ai-result.png)
 
-수식과 Markdown 렌더링 품질을 높이는 과정에서 여러 접근을 시험했지만, 완성도보다 안정성을 우선해 일부 구현은 보수적으로 유지했습니다.
+### Revision History
 
-### 자동 저장 중 이탈
+![DraftDeck revision history](./docs/assets/revision-history.png)
 
-저장 중 브라우저를 닫을 때 데이터 유실 가능성이 있어 `beforeunload` 경고를 추가했습니다.
+## Why This Is Different
 
-## 한계
+이 프로젝트는 `AI 버튼 몇 개 붙인 에디터`처럼 보이지 않도록 아래 구조를 넣었습니다.
 
-- 협업 기능 없음
-- 테스트 커버리지 낮음
-- 배포 후 운영 지표 기반 개선 미적용
+- `posts.revision_number`
+  - autosave 시점의 optimistic save 기준점
+- `draft_sources`
+  - 초안이 어떤 자료에서 출발했는지 기록
+- `ai_runs`
+  - 어떤 액션을 어떤 입력으로 실행했는지 기록
+- `draft_revisions`
+  - autosave, AI apply, source import를 revision으로 남김
 
-## 다음 단계
+UI에서도 이 구조가 드러나도록 오른쪽 패널에서 `자료`, `리비전`, `AI 실행 기록`을 같이 보여줍니다.
 
-- 핵심 플로우 E2E 테스트 추가
-- 배포 후 오류와 사용 로그 기반 개선
-- 공유 링크와 export(PDF/Markdown) 기능 추가
+## Architecture
 
-## 기술 스택
+### 1. Server boundary
 
-- Next.js 16
-- React 19 + TypeScript
-- Zustand
-- Supabase
-- Gemini API
-- Tailwind CSS
+- `src/app/actions.ts`
+  - 클라이언트에서 호출하는 서버 액션 entrypoint
+- `src/lib/drafts/persistence.ts`
+  - 문서 CRUD, source 기록, revision 기록, artifact 조회
+- `src/lib/ai/service.ts`
+  - Gemini 호출, soft quota, ai run 기록
 
-## 실행 방법
+### 2. Client session
+
+- `src/store/useDraftStore.ts`
+  - 현재 문서, artifact, toast, panel 상태만 보관
+- `src/hooks/useDraftPageController.ts`
+  - autosave queue, preview hydration, import/AI/apply orchestration
+
+### 3. Preview mode
+
+- auth를 끄지 않고 UI만 빠르게 검증하기 위한 bypass
+- localStorage에 preview session을 저장해 새로고침 후에도 흐름 유지
+- local:
+  - `NEXT_PUBLIC_DRAFTDECK_UI_PREVIEW=1`
+- query:
+  - local dev 또는 Vercel preview 환경에서 `/?draftdeck-preview=1`
+
+## Verification
+
+현재 기본 검증 명령은 아래입니다.
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+추가로 README 캡처 자산은 아래 명령으로 다시 만들 수 있습니다.
+
+```bash
+npm run capture:screenshots
+```
+
+## Local Development
 
 ```bash
 npm install
@@ -93,35 +121,33 @@ npm run dev
 GEMINI_API_KEY=...
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
-## 개발용 UI preview
+## Schema Upgrade
 
-기본 방식:
-
-```bash
-NEXT_PUBLIC_DRAFTDECK_UI_PREVIEW=1
-```
-
-또는 개발 환경에서만 query string으로도 진입할 수 있습니다.
+새 revision/source/ai-run 구조는 아래 migration 기준입니다.
 
 ```text
-/?draftdeck-preview=1
+supabase/migrations/20260319_draftdeck_supporting_upgrade.sql
 ```
 
-## 폴더 구조
+추가되는 항목:
 
-```text
-src/
-  app/
-    actions.ts
-    ClientPage.tsx
-  hooks/
-    useDraftPageController.ts
-  components/
-    draft/
-    editor/
-    layout/
-  store/
-    useDraftStore.ts
-```
+- `posts.revision_number`
+- `draft_sources`
+- `ai_runs`
+- `draft_revisions`
+
+아직 migration이 적용되지 않은 환경에서도 앱이 완전히 깨지지 않도록, 선택 기록 테이블은 합성 객체로 fallback 하도록 만들었습니다. 다만 면접용 설명과 실제 데이터 추적을 위해서는 migration 적용이 전제입니다.
+
+## Tech Stack
+
+- Next.js 16
+- React 19 + TypeScript
+- Zustand
+- Supabase
+- Gemini API
+- Vitest
+- Playwright
+- Tailwind CSS
