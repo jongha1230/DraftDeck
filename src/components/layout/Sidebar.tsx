@@ -1,4 +1,4 @@
-import { formatListDate } from "@/lib/date-format";
+import { formatSidebarDateTime } from "@/lib/date-format";
 import { createClient, hasBrowserSupabaseEnv } from "@/lib/supabase/client";
 import { PreviewUser } from "@/lib/ui-preview";
 import { Post } from "@/types";
@@ -195,9 +195,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                       >
                         {post.title || "제목 없는 초안"}
                       </p>
-                      <div className="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--app-muted)]">
+                      <div className="mt-1.5 flex items-center gap-1.5 whitespace-nowrap text-xs text-[var(--app-muted)]">
                         <Clock3 size={11} />
-                        <span>{formatListDate(post.updated_at)}</span>
+                        <span>{formatSidebarDateTime(post.updated_at)}</span>
                       </div>
                     </div>
 
@@ -269,7 +269,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                               </p>
                               <div className="mt-1.5 flex items-center gap-1.5 whitespace-nowrap text-[11px] text-[var(--app-muted)]">
                                 <Clock3 size={11} />
-                                <span>{formatListDate(post.deleted_at || post.updated_at)}</span>
+                                <span>
+                                  {formatSidebarDateTime(
+                                    post.deleted_at || post.updated_at,
+                                  )}{" "}
+                                  삭제
+                                </span>
                               </div>
                             </div>
 

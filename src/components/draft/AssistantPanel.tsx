@@ -1,6 +1,6 @@
 import CustomButton from "@/components/ui/CustomButton";
 import { formatRecordDate } from "@/lib/date-format";
-import { getAIActionLabel, getRevisionTriggerLabel } from "@/lib/drafts/records";
+import { getRevisionTriggerLabel } from "@/lib/drafts/records";
 import { DraftArtifacts, DraftRevisionTrigger } from "@/types";
 import {
   ChevronLeft,
@@ -9,7 +9,6 @@ import {
   FileText,
   History,
   PanelRightClose,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import { ReactNode, useMemo } from "react";
@@ -79,7 +78,6 @@ export default function AssistantPanel({
   }, [artifacts.revisions]);
 
   const recentSources = artifacts.sources.slice(0, 2);
-  const recentAIRuns = artifacts.aiRuns.slice(0, 2);
 
   const revisionDisplayMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -91,21 +89,6 @@ export default function AssistantPanel({
 
     return map;
   }, [recentRevisions]);
-
-  const revisionByAiRunId = useMemo(() => {
-    const map = new Map<string, number>();
-
-    for (const revision of recentRevisions) {
-      if (revision.ai_run_id) {
-        map.set(
-          revision.ai_run_id,
-          revisionDisplayMap.get(revision.id) ?? displayRevisionNumber,
-        );
-      }
-    }
-
-    return map;
-  }, [displayRevisionNumber, recentRevisions, revisionDisplayMap]);
 
   return (
     <>
@@ -256,45 +239,6 @@ export default function AssistantPanel({
                         이 버전으로 되돌리기
                       </CustomButton>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </PanelSection>
-
-          <PanelSection
-            icon={<Sparkles size={15} className="text-[var(--app-primary)]" />}
-            title="AI 실행 기록"
-            className="min-h-[8.5rem] xl:min-h-[9rem]"
-          >
-            {isArtifactsLoading ? (
-              <p className="text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
-            ) : artifacts.aiRuns.length === 0 ? (
-              <p className="text-sm leading-6 text-[var(--app-muted)]">
-                아직 AI 실행 기록이 없습니다.
-              </p>
-            ) : (
-              <div className="space-y-1.5 pb-2">
-                {recentAIRuns.map((run) => (
-                  <div
-                    key={run.id}
-                    className="flex items-center justify-between gap-3 rounded-[16px] border border-[color:var(--app-line)] bg-white px-3 py-2.5"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Sparkles
-                        size={13}
-                        className="shrink-0 text-[var(--app-primary)]"
-                      />
-                      <p className="truncate text-sm font-medium text-[var(--app-ink)]">
-                        {getAIActionLabel(run.action)}
-                        {revisionByAiRunId.get(run.id)
-                          ? ` · v${revisionByAiRunId.get(run.id)}`
-                          : ""}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-xs text-[var(--app-muted)]">
-                      {formatRecordDate(run.created_at)}
-                    </span>
                   </div>
                 ))}
               </div>
