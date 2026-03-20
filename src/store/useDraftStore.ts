@@ -21,9 +21,15 @@ interface DraftState {
   }) => void;
   setPosts: (posts: Post[]) => void;
   prependPost: (post: Post) => void;
+  replacePost: (previousPostId: string, post: Post) => void;
+  removePost: (postId: string, nextActivePostId?: string | null) => void;
   upsertPost: (post: Post) => void;
   markPostDeleted: (post: Post) => void;
-  restoreDeletedPost: (post: Post) => void;
+  restoreDeletedPost: (
+    post: Post,
+    artifacts?: DraftArtifacts,
+    isArtifactsLoaded?: boolean,
+  ) => void;
   removeDeletedPost: (postId: string) => void;
   setActivePostId: (id: string | null) => void;
   setArtifacts: (postId: string, artifacts: DraftArtifacts) => void;
@@ -125,6 +131,58 @@ export const useDraftStore = create<DraftState>((set) => {
         posts: [post, ...state.posts],
         activePostId: post.id,
       })),
+    replacePost: (previousPostId, post) =>
+      set((state) => {
+        const previousArtifacts = state.artifactsByPostId[previousPostId];
+        const previousLoaded = state.loadedArtifactPostIds[previousPostId];
+        const nextPosts = state.posts.map((item) =>
+          item.id === previousPostId ? post : item,
+        );
+        const { [previousPostId]: removedArtifacts, ...restArtifacts } =
+          state.artifactsByPostId;
+        const { [previousPostId]: removedLoaded, ...restLoaded } =
+          state.loadedArtifactPostIds;
+        void removedArtifacts;
+        void removedLoaded;
+
+        return {
+          posts: nextPosts,
+          activePostId:
+            state.activePostId === previousPostId ? post.id : state.activePostId,
+          artifactsByPostId: previousArtifacts
+            ? {
+                ...restArtifacts,
+                [post.id]: previousArtifacts,
+              }
+            : restArtifacts,
+          loadedArtifactPostIds: previousLoaded
+            ? {
+                ...restLoaded,
+                [post.id]: previousLoaded,
+              }
+            : restLoaded,
+        };
+      }),
+    removePost: (postId, nextActivePostId = null) =>
+      set((state) => {
+        const nextPosts = state.posts.filter((item) => item.id !== postId);
+        const { [postId]: removedArtifacts, ...restArtifacts } =
+          state.artifactsByPostId;
+        const { [postId]: removedLoaded, ...restLoaded } =
+          state.loadedArtifactPostIds;
+        void removedArtifacts;
+        void removedLoaded;
+
+        return {
+          posts: nextPosts,
+          activePostId:
+            state.activePostId === postId
+              ? nextActivePostId ?? nextPosts[0]?.id ?? null
+              : state.activePostId,
+          artifactsByPostId: restArtifacts,
+          loadedArtifactPostIds: restLoaded,
+        };
+      }),
     upsertPost: (post) =>
       set((state) => ({
         posts: state.posts.some((item) => item.id === post.id)
@@ -156,11 +214,23 @@ export const useDraftStore = create<DraftState>((set) => {
           isDirty: false,
         };
       }),
-    restoreDeletedPost: (post) =>
+    restoreDeletedPost: (post, artifacts, isArtifactsLoaded = false) =>
       set((state) => ({
         posts: [post, ...state.posts.filter((item) => item.id !== post.id)],
         deletedPosts: state.deletedPosts.filter((item) => item.id !== post.id),
         activePostId: post.id,
+        artifactsByPostId: artifacts
+          ? {
+              ...state.artifactsByPostId,
+              [post.id]: artifacts,
+            }
+          : state.artifactsByPostId,
+        loadedArtifactPostIds: isArtifactsLoaded
+          ? {
+              ...state.loadedArtifactPostIds,
+              [post.id]: true,
+            }
+          : state.loadedArtifactPostIds,
       })),
     removeDeletedPost: (postId) =>
       set((state) => ({
