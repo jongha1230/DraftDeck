@@ -223,66 +223,76 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <div className="mt-4 border-t border-[color:var(--app-line)] pt-4">
-            {deletedPosts.length > 0 ? (
-              <div className="mb-3">
-                <button
-                  type="button"
-                  onClick={() => setIsDeletedTrayOpen((current) => !current)}
-                  className="flex w-full items-center justify-between rounded-[18px] border border-[color:var(--app-line)] bg-white px-3 py-2.5 text-left transition hover:border-[color:var(--app-line-strong)] hover:bg-[var(--app-surface-muted)]"
-                >
-                  <span className="inline-flex items-center gap-2 text-sm font-medium text-[var(--app-ink)]">
-                    <Trash2 size={14} className="text-[var(--app-muted)]" />
-                    최근 삭제
-                  </span>
-                  <span className="text-xs text-[var(--app-muted)]">
-                    {isDeletedTrayOpen ? "숨기기" : `${deletedPosts.length}개`}
-                  </span>
-                </button>
+            <div className="mb-3">
+              <button
+                type="button"
+                onClick={() => setIsDeletedTrayOpen((current) => !current)}
+                className="flex w-full items-center justify-between rounded-[18px] border border-[color:var(--app-line)] bg-white px-3 py-2.5 text-left transition hover:border-[color:var(--app-line-strong)] hover:bg-[var(--app-surface-muted)]"
+              >
+                <span className="inline-flex items-center gap-2 text-sm font-medium text-[var(--app-ink)]">
+                  <Trash2 size={14} className="text-[var(--app-muted)]" />
+                  최근 삭제
+                </span>
+                <span className="text-xs text-[var(--app-muted)]">
+                  {isDeletedTrayOpen
+                    ? "숨기기"
+                    : deletedPosts.length > 0
+                      ? `${deletedPosts.length}개`
+                      : "0개"}
+                </span>
+              </button>
 
-                {deletedPosts.length > 0 && isDeletedTrayOpen ? (
-                  <div className="app-scrollbar mt-2 max-h-[14rem] space-y-2 overflow-y-auto pr-1">
-                    {deletedPosts.map((post) => (
-                      <div
-                        key={post.id}
-                        className="rounded-[18px] border border-dashed border-[color:var(--app-line-strong)] bg-[var(--app-surface-muted)] px-3 py-3"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-[var(--app-ink)]">
-                              {post.title || "제목 없는 초안"}
-                            </p>
-                            <div className="mt-1.5 flex items-center gap-1.5 whitespace-nowrap text-[11px] text-[var(--app-muted)]">
-                              <Clock3 size={11} />
-                              <span>{formatListDate(post.deleted_at || post.updated_at)}</span>
+              {isDeletedTrayOpen ? (
+                <div className="app-scrollbar mt-2 max-h-[14rem] overflow-y-auto pr-1">
+                  {deletedPosts.length > 0 ? (
+                    <div className="space-y-2">
+                      {deletedPosts.map((post) => (
+                        <div
+                          key={post.id}
+                          className="rounded-[18px] border border-dashed border-[color:var(--app-line-strong)] bg-[var(--app-surface-muted)] px-3 py-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-[var(--app-ink)]">
+                                {post.title || "제목 없는 초안"}
+                              </p>
+                              <div className="mt-1.5 flex items-center gap-1.5 whitespace-nowrap text-[11px] text-[var(--app-muted)]">
+                                <Clock3 size={11} />
+                                <span>{formatListDate(post.deleted_at || post.updated_at)}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex shrink-0 items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="px-0 text-[var(--app-primary)] hover:bg-transparent hover:text-[var(--app-primary-strong)]"
+                                onClick={() => onPostRestore(post.id)}
+                              >
+                                복구
+                              </Button>
+                              <button
+                                type="button"
+                                onClick={() => onPostPurge(post.id)}
+                                className="rounded-xl p-1.5 text-[var(--app-muted)] transition hover:bg-[rgba(194,65,60,0.08)] hover:text-[var(--app-danger)]"
+                                aria-label={`${post.title || "제목 없는 초안"} 영구 삭제`}
+                              >
+                                <Trash2 size={13} />
+                              </button>
                             </div>
                           </div>
-
-                          <div className="flex shrink-0 items-center gap-2">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="px-0 text-[var(--app-primary)] hover:bg-transparent hover:text-[var(--app-primary-strong)]"
-                              onClick={() => onPostRestore(post.id)}
-                            >
-                              복구
-                            </Button>
-                            <button
-                              type="button"
-                              onClick={() => onPostPurge(post.id)}
-                              className="rounded-xl p-1.5 text-[var(--app-muted)] transition hover:bg-[rgba(194,65,60,0.08)] hover:text-[var(--app-danger)]"
-                              aria-label={`${post.title || "제목 없는 초안"} 영구 삭제`}
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-[18px] border border-dashed border-[color:var(--app-line-strong)] bg-[var(--app-surface-muted)] px-3 py-3 text-sm leading-6 text-[var(--app-muted)]">
+                      최근 삭제 문서가 없습니다.
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
 
             {resolvedUser ? (
               <UserProfile
