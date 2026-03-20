@@ -4,6 +4,7 @@ import { PreviewUser } from "@/lib/ui-preview";
 import { Post } from "@/types";
 import { User } from "@supabase/supabase-js";
 import {
+  ChevronDown,
   Clock3,
   FileText,
   NotebookPen,
@@ -47,6 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isDeletedTrayOpen, setIsDeletedTrayOpen] = useState(false);
+  const deletedTrayCount = deletedPosts.length;
   const supabase = useMemo(
     () => (isPreview || !hasBrowserSupabaseEnv() ? null : createClient()),
     [isPreview],
@@ -233,17 +235,26 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <Trash2 size={14} className="text-[var(--app-muted)]" />
                   최근 삭제
                 </span>
-                <span className="text-xs text-[var(--app-muted)]">
-                  {isDeletedTrayOpen
-                    ? "숨기기"
-                    : deletedPosts.length > 0
-                      ? `${deletedPosts.length}개`
-                      : "0개"}
+                <span className="inline-flex items-center gap-2 text-xs text-[var(--app-muted)]">
+                  <span>{deletedTrayCount}개</span>
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform duration-300 ${
+                      isDeletedTrayOpen ? "rotate-180" : ""
+                    }`}
+                  />
                 </span>
               </button>
 
-              {isDeletedTrayOpen ? (
-                <div className="app-scrollbar mt-2 max-h-[14rem] overflow-y-auto pr-1">
+              <div
+                className={`overflow-hidden transition-[max-height,opacity,transform,margin] duration-300 ease-out ${
+                  isDeletedTrayOpen
+                    ? "mt-2 max-h-[18rem] translate-y-0 opacity-100"
+                    : "max-h-0 -translate-y-2 opacity-0"
+                }`}
+                aria-hidden={!isDeletedTrayOpen}
+              >
+                <div className="app-scrollbar min-h-[13.75rem] max-h-[13.75rem] overflow-y-auto pr-1">
                   {deletedPosts.length > 0 ? (
                     <div className="space-y-2">
                       {deletedPosts.map((post) => (
@@ -286,12 +297,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-[18px] border border-dashed border-[color:var(--app-line-strong)] bg-[var(--app-surface-muted)] px-3 py-3 text-sm leading-6 text-[var(--app-muted)]">
+                    <div className="flex min-h-[13.75rem] items-center justify-center rounded-[18px] border border-dashed border-[color:var(--app-line-strong)] bg-[var(--app-surface-muted)] px-3 py-3 text-center text-sm leading-6 text-[var(--app-muted)]">
                       최근 삭제 문서가 없습니다.
                     </div>
                   )}
                 </div>
-              ) : null}
+              </div>
             </div>
 
             {resolvedUser ? (
