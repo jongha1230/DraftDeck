@@ -62,12 +62,12 @@ const AIResultPanel: React.FC<AIResultPanelProps> = ({
         </div>
 
         {!isStreaming ? (
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2 self-start">
             <CustomButton
               variant="ghost"
               size="sm"
               onClick={handleCopy}
-              className="gap-1.5"
+              className="gap-1.5 whitespace-nowrap"
             >
               {copied ? (
                 <Check size={14} className="text-[var(--app-primary)]" />

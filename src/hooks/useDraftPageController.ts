@@ -2,8 +2,11 @@
 
 import {
   createPostAction,
+  deleteDraftRevisionAction,
   deletePostAction,
   getDraftArtifactsAction,
+  restoreDeletedPostAction,
+  permanentlyDeletePostAction,
   recordDraftSourceAction,
   runAIAction,
   saveDraftAction,
@@ -29,7 +32,6 @@ import {
   DraftSourceKind,
   Post,
   PreviewMode,
-  type AssistantPanelMode,
   type SaveDraftOptions,
 } from "@/types";
 import {
@@ -43,6 +45,7 @@ import {
 
 interface UseDraftPageControllerParams {
   initialPosts: Post[];
+  initialDeletedPosts?: Post[];
   isPreview?: boolean;
 }
 
@@ -50,10 +53,12 @@ const SAVE_DEBOUNCE_MS = 900;
 
 export function useDraftPageController({
   initialPosts,
+  initialDeletedPosts = [],
   isPreview = false,
 }: UseDraftPageControllerParams) {
   const {
     posts,
+    deletedPosts,
     activePostId,
     artifactsByPostId,
     loadedArtifactPostIds,
@@ -65,11 +70,14 @@ export function useDraftPageController({
     hydrateSession,
     prependPost,
     upsertPost,
-    removePost,
+    markPostDeleted,
+    restoreDeletedPost,
+    removeDeletedPost,
     setActivePostId,
     setArtifacts,
     prependSource,
     prependRevision,
+    removeRevision,
     prependAIRun,
     setIsSaving,
     setIsDirty,
@@ -91,9 +99,6 @@ export function useDraftPageController({
   const [selectionText, setSelectionText] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
-  const [assistantPanelMode, setAssistantPanelMode] =
-    useState<AssistantPanelMode>("overview");
-  const [pendingDeletePost, setPendingDeletePost] = useState<Post | null>(null);
   const [hasInitializedStore, setHasInitializedStore] = useState(false);
   const [isArtifactsLoading, setIsArtifactsLoading] = useState(false);
 
@@ -112,13 +117,17 @@ export function useDraftPageController({
         ? createDefaultPreviewSession()
         : {
             posts: initialPosts,
+            deletedPosts: initialDeletedPosts,
             activePostId: initialPosts[0]?.id ?? null,
             artifactsByPostId: {},
           },
-    [initialPosts, isPreview],
+    [initialDeletedPosts, initialPosts, isPreview],
   );
 
   const resolvedPosts = hasInitializedStore ? posts : fallbackState.posts;
+  const resolvedDeletedPosts = hasInitializedStore
+    ? deletedPosts
+    : fallbackState.deletedPosts;
   const resolvedActivePostId = hasInitializedStore
     ? activePostId
     : fallbackState.activePostId;
@@ -134,6 +143,14 @@ export function useDraftPageController({
   const activeArtifacts = resolvedActivePostId
     ? resolvedArtifactsByPostId[resolvedActivePostId] ?? EMPTY_DRAFT_ARTIFACTS
     : EMPTY_DRAFT_ARTIFACTS;
+
+  const syncSelectionText = useCallback(
+    (nextSelection: string) => {
+      const text = nextSelection.trim();
+      setSelectionText(text);
+    },
+    [],
+  );
 
   const flushSave = useCallback(
     async (postId: string) => {
@@ -162,15 +179,24 @@ export function useDraftPageController({
         return;
       }
 
+      const requestSnapshot = latestPost;
+
       savingPostIdsRef.current.add(postId);
       saveIntentsRef.current.delete(postId);
 
       try {
         if (isPreview) {
+          const latestRevisionNumber = Math.max(
+            latestPost.revision_number,
+            (useDraftStore.getState().artifactsByPostId[postId]?.revisions ?? []).reduce(
+              (max, revision) => Math.max(max, revision.revision_number),
+              0,
+            ),
+          );
           const previewPost = {
-            ...latestPost,
+            ...requestSnapshot,
             updated_at: new Date().toISOString(),
-            revision_number: latestPost.revision_number + 1,
+            revision_number: latestRevisionNumber + 1,
           };
 
           upsertPost(previewPost);
@@ -190,9 +216,9 @@ export function useDraftPageController({
         const result = await saveDraftAction(
           {
             postId,
-            title: latestPost.title,
-            content: latestPost.content,
-            expectedRevision: latestPost.revision_number,
+            title: requestSnapshot.title,
+            content: requestSnapshot.content,
+            expectedRevision: requestSnapshot.revision_number,
           },
           intent,
         );
@@ -209,7 +235,23 @@ export function useDraftPageController({
           return;
         }
 
-        upsertPost(result.post);
+        const livePost = useDraftStore
+          .getState()
+          .posts.find((post) => post.id === postId);
+        const hasLocalChangesAfterRequest =
+          !!livePost &&
+          (livePost.title !== requestSnapshot.title ||
+            livePost.content !== requestSnapshot.content);
+
+        upsertPost(
+          hasLocalChangesAfterRequest && livePost
+            ? {
+                ...livePost,
+                revision_number: result.post.revision_number,
+                updated_at: result.post.updated_at,
+              }
+            : result.post,
+        );
         if (result.revision) {
           prependRevision(postId, result.revision);
         }
@@ -268,6 +310,7 @@ export function useDraftPageController({
       ? readPreviewSession()
       : {
           posts: initialPosts,
+          deletedPosts: initialDeletedPosts,
           activePostId: initialPosts[0]?.id ?? null,
           artifactsByPostId: {},
         };
@@ -275,7 +318,7 @@ export function useDraftPageController({
     hydrateSession(sessionState);
     hasHydratedInitialState.current = true;
     setHasInitializedStore(true);
-  }, [hydrateSession, initialPosts, isPreview]);
+  }, [hydrateSession, initialDeletedPosts, initialPosts, isPreview]);
 
   const loadArtifacts = useCallback(
     async (postId: string) => {
@@ -312,10 +355,18 @@ export function useDraftPageController({
 
     writePreviewSession({
       posts,
+      deletedPosts,
       activePostId,
       artifactsByPostId,
     });
-  }, [activePostId, artifactsByPostId, hasInitializedStore, isPreview, posts]);
+  }, [
+    activePostId,
+    artifactsByPostId,
+    deletedPosts,
+    hasInitializedStore,
+    isPreview,
+    posts,
+  ]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth >= 1280) {
@@ -332,30 +383,6 @@ export function useDraftPageController({
   }, [loadArtifacts, resolvedActivePostId]);
 
   useEffect(() => {
-    const handleSelectionChange = () => {
-      const text = window.getSelection()?.toString().trim() || "";
-      setSelectionText(text);
-
-      if (text) {
-        setAssistantPanelMode("selection");
-      } else if (!aiResult) {
-        setAssistantPanelMode("overview");
-      }
-    };
-
-    document.addEventListener("selectionchange", handleSelectionChange);
-    return () =>
-      document.removeEventListener("selectionchange", handleSelectionChange);
-  }, [aiResult]);
-
-  useEffect(() => {
-    if (aiResult) {
-      setAssistantPanelMode("result");
-      setIsAssistantOpen(true);
-    }
-  }, [aiResult]);
-
-  useEffect(() => {
     const timers = saveTimersRef.current;
 
     return () => {
@@ -363,17 +390,11 @@ export function useDraftPageController({
     };
   }, []);
 
-  const openAssistantPanel = (mode?: AssistantPanelMode) => {
-    if (mode) {
-      setAssistantPanelMode(mode);
-    } else if (aiResult) {
-      setAssistantPanelMode("result");
-    } else if (selectionText) {
-      setAssistantPanelMode("selection");
-    } else {
-      setAssistantPanelMode("overview");
-    }
+  useEffect(() => {
+    syncSelectionText("");
+  }, [resolvedActivePostId, syncSelectionText]);
 
+  const openAssistantPanel = () => {
     setIsAssistantOpen(true);
   };
 
@@ -433,32 +454,70 @@ export function useDraftPageController({
 
   const handlePreviewClose = () => setIsPreviewOpen(false);
 
-  const requestDeletePost = (post: Post) => {
-    setPendingDeletePost(post);
-  };
-
-  const cancelDeletePost = () => {
-    setPendingDeletePost(null);
-  };
-
-  const confirmDeletePost = async () => {
-    if (!pendingDeletePost) return;
-
+  const handleDeletePost = async (post: Post) => {
     try {
-      if (!isPreview) {
-        await deletePostAction(pendingDeletePost.id);
-      }
+      const deletedPost = isPreview
+        ? {
+            ...post,
+            deleted_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+        : await deletePostAction(post.id);
 
-      removePost(pendingDeletePost.id);
-      pushNotification("초안을 목록에서 제거했습니다.", "success", "문서 삭제 완료");
+      markPostDeleted(deletedPost);
+      pushNotification("초안을 최근 삭제로 이동했습니다.", "success", "문서 삭제");
     } catch (error: unknown) {
       const message =
         error instanceof Error
           ? error.message
           : "초안을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.";
       pushNotification(message, "error", "삭제 실패");
-    } finally {
-      setPendingDeletePost(null);
+    }
+  };
+
+  const handleRestoreDeletedPost = async (postId: string) => {
+    const deletedPost = resolvedDeletedPosts.find((post) => post.id === postId);
+    if (!deletedPost) return;
+
+    try {
+      const restoredPost = isPreview
+        ? {
+            ...deletedPost,
+            deleted_at: null,
+            updated_at: new Date().toISOString(),
+          }
+        : await restoreDeletedPostAction(postId);
+
+      restoreDeletedPost(restoredPost);
+      pushNotification("최근 삭제 문서를 복구했습니다.", "success", "문서 복구");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "문서를 복구하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+      pushNotification(message, "error", "복구 실패");
+    }
+  };
+
+  const handlePermanentlyDeletePost = async (postId: string) => {
+    const deletedPost = resolvedDeletedPosts.find((post) => post.id === postId);
+    if (!deletedPost) return;
+
+    try {
+      if (isPreview) {
+        removeDeletedPost(postId);
+      } else {
+        await permanentlyDeletePostAction(postId);
+        removeDeletedPost(postId);
+      }
+
+      pushNotification("최근 삭제 문서를 완전히 제거했습니다.", "success", "영구 삭제");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "문서를 완전히 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+      pushNotification(message, "error", "영구 삭제 실패");
     }
   };
 
@@ -587,7 +646,6 @@ export function useDraftPageController({
           ? error.message
           : "요청 처리 중 오류가 발생했습니다.";
       pushNotification(message, "error", "AI 요청 실패");
-      setAssistantPanelMode(selectionText ? "selection" : "overview");
     } finally {
       setAiLoading(false);
     }
@@ -619,13 +677,13 @@ export function useDraftPageController({
         : DraftRevisionTrigger.AI_APPLY;
 
     updatePostLocally(activePostId, { content: text });
+    syncSelectionText("");
     queueSave(activePostId, {
       trigger: nextTrigger,
       aiRunId: aiResult.runId,
       sourceId: aiResult.sourceId,
     });
     resetAiState();
-    setAssistantPanelMode(selectionText ? "selection" : "overview");
   };
 
   const handleAppendAIResult = (text: string) => {
@@ -639,13 +697,13 @@ export function useDraftPageController({
     updatePostLocally(activePostId, {
       content: `${activePost.content}\n\n${text}`,
     });
+    syncSelectionText("");
     queueSave(activePostId, {
       trigger: nextTrigger,
       aiRunId: aiResult.runId,
       sourceId: aiResult.sourceId,
     });
     resetAiState();
-    setAssistantPanelMode(selectionText ? "selection" : "overview");
   };
 
   const handleTitleChange = (title: string) => {
@@ -695,7 +753,7 @@ export function useDraftPageController({
 
   const handleOpenImport = () => {
     setIsSourceModalOpen(true);
-    openAssistantPanel("overview");
+    openAssistantPanel();
   };
 
   const handleCloseImport = () => {
@@ -707,7 +765,6 @@ export function useDraftPageController({
 
   const handleCloseAIResult = () => {
     resetAiState();
-    setAssistantPanelMode(selectionText ? "selection" : "overview");
   };
 
   const handleExportMarkdown = () => {
@@ -724,8 +781,47 @@ export function useDraftPageController({
     URL.revokeObjectURL(url);
   };
 
+  const handleRestoreRevision = (revisionId: string) => {
+    if (!activePostId) return;
+
+    const revision = activeArtifacts.revisions.find((item) => item.id === revisionId);
+    if (!revision) return;
+
+    updatePostLocally(activePostId, {
+      title: revision.title,
+      content: revision.content,
+    });
+    queueSave(activePostId, { trigger: DraftRevisionTrigger.AUTOSAVE });
+    syncSelectionText("");
+    pushNotification(
+      `v${revision.revision_number} 내용을 현재 문서로 되돌렸습니다.`,
+      "success",
+      "버전 복원",
+    );
+  };
+
+  const handleDeleteRevision = async (revisionId: string) => {
+    if (!activePostId) return;
+
+    try {
+      if (!isPreview) {
+        await deleteDraftRevisionAction(revisionId);
+      }
+
+      removeRevision(activePostId, revisionId);
+      pushNotification("최근 버전을 기록 목록에서 제거했습니다.", "success", "버전 삭제");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "버전을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+      pushNotification(message, "error", "버전 삭제 실패");
+    }
+  };
+
   return {
     posts: resolvedPosts,
+    deletedPosts: resolvedDeletedPosts,
     notifications,
     activePostId: resolvedActivePostId,
     activePost,
@@ -743,11 +839,9 @@ export function useDraftPageController({
     isSidebarOpen,
     isAssistantOpen,
     isArtifactsLoading,
-    assistantPanelMode,
     isSourceModalOpen,
     isPreviewOpen,
     previewMode,
-    pendingDeletePost,
     contentScrollRef,
     setSourceInput: handleSourceInputChange,
     setPreviewMode,
@@ -758,20 +852,23 @@ export function useDraftPageController({
     closeSidebar,
     handlePostSelect,
     handleCreatePost,
-    requestDeletePost,
-    cancelDeletePost,
-    confirmDeletePost,
+    handleDeletePost,
+    handleRestoreDeletedPost,
+    handlePermanentlyDeletePost,
     handlePreviewOpen,
     handlePreviewClose,
     handleAIAction,
     handleApplyAIResult,
     handleAppendAIResult,
+    handleEditorSelectionChange: syncSelectionText,
     handleTitleChange,
     handleContentChange,
     handleFileUpload,
     handleOpenImport,
     handleCloseImport,
     handleCloseAIResult,
+    handleRestoreRevision,
+    handleDeleteRevision,
     handleExportMarkdown,
   };
 }
