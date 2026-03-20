@@ -15,6 +15,7 @@ interface DraftEditorPaneProps {
   isAiLoading: boolean;
   isSaving: boolean;
   isDirty: boolean;
+  displayRevisionNumber: number;
   onSelectionChange: (selection: string) => void;
   onContentChange: (content: string) => void;
   onRunSelectionAction: (action: AIActionType, selection?: string) => void;
@@ -26,6 +27,7 @@ export default function DraftEditorPane({
   isAiLoading,
   isSaving,
   isDirty,
+  displayRevisionNumber,
   onSelectionChange,
   onContentChange,
   onRunSelectionAction,
@@ -121,7 +123,7 @@ export default function DraftEditorPane({
               )}
             </span>
             <span className="h-3.5 w-px bg-[var(--app-line)]" />
-            <span className="whitespace-nowrap">v{post.revision_number}</span>
+            <span className="whitespace-nowrap">v{displayRevisionNumber}</span>
           </div>
         </div>
 

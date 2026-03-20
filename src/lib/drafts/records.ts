@@ -126,7 +126,7 @@ export function getRevisionTriggerLabel(trigger: DraftRevisionTrigger) {
     case DraftRevisionTrigger.CREATE:
       return "새 문서";
     case DraftRevisionTrigger.AUTOSAVE:
-      return "자동 저장";
+      return "수정 저장";
     case DraftRevisionTrigger.AI_APPLY:
       return "AI 결과 덮어쓰기";
     case DraftRevisionTrigger.AI_APPEND:
@@ -149,6 +149,73 @@ function normalizeRevisionTrigger(value: unknown): DraftRevisionTrigger {
   }
 
   return DraftRevisionTrigger.AUTOSAVE;
+}
+
+const CHECKPOINT_MIN_CHAR_DELTA = 120;
+const CHECKPOINT_MIN_CHANGE_RATIO = 0.18;
+
+export function shouldCreateAutosaveCheckpoint(input: {
+  previousTitle: string;
+  previousContent: string;
+  nextTitle: string;
+  nextContent: string;
+}) {
+  if (input.previousTitle.trim() !== input.nextTitle.trim()) {
+    return true;
+  }
+
+  const previousContent = input.previousContent.trim();
+  const nextContent = input.nextContent.trim();
+
+  if (!previousContent && nextContent) {
+    return true;
+  }
+
+  const changedChars = estimateChangedCharacters(previousContent, nextContent);
+  const baseline = Math.max(previousContent.length, nextContent.length, 1);
+
+  return (
+    changedChars >= CHECKPOINT_MIN_CHAR_DELTA ||
+    changedChars / baseline >= CHECKPOINT_MIN_CHANGE_RATIO
+  );
+}
+
+function estimateChangedCharacters(previous: string, next: string) {
+  if (previous === next) {
+    return 0;
+  }
+
+  const sharedPrefix = getSharedPrefixLength(previous, next);
+  const previousRemaining = previous.slice(sharedPrefix);
+  const nextRemaining = next.slice(sharedPrefix);
+  const sharedSuffix = getSharedSuffixLength(previousRemaining, nextRemaining);
+
+  return Math.max(previousRemaining.length, nextRemaining.length) - sharedSuffix;
+}
+
+function getSharedPrefixLength(previous: string, next: string) {
+  const length = Math.min(previous.length, next.length);
+  let index = 0;
+
+  while (index < length && previous[index] === next[index]) {
+    index += 1;
+  }
+
+  return index;
+}
+
+function getSharedSuffixLength(previous: string, next: string) {
+  const length = Math.min(previous.length, next.length);
+  let index = 0;
+
+  while (
+    index < length &&
+    previous[previous.length - 1 - index] === next[next.length - 1 - index]
+  ) {
+    index += 1;
+  }
+
+  return index;
 }
 
 function normalizeAIAction(value: unknown): AIActionType {

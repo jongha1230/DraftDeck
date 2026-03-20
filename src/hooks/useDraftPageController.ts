@@ -14,6 +14,7 @@ import {
 import {
   EMPTY_DRAFT_ARTIFACTS,
   buildMarkdownExportFilename,
+  shouldCreateAutosaveCheckpoint,
 } from "@/lib/drafts/records";
 import {
   createDefaultPreviewSession,
@@ -200,15 +201,30 @@ export function useDraftPageController({
           };
 
           upsertPost(previewPost);
-          prependRevision(
-            postId,
-            createPreviewRevision({
-              post: previewPost,
-              trigger: intent.trigger,
-              aiRunId: intent.aiRunId ?? null,
-              sourceId: intent.sourceId ?? null,
-            }),
-          );
+          const latestCheckpoint = (
+            useDraftStore.getState().artifactsByPostId[postId]?.revisions ?? []
+          )[0];
+          const shouldCreateRevision =
+            intent.trigger !== DraftRevisionTrigger.AUTOSAVE ||
+            !latestCheckpoint ||
+            shouldCreateAutosaveCheckpoint({
+              previousTitle: latestCheckpoint.title,
+              previousContent: latestCheckpoint.content,
+              nextTitle: previewPost.title,
+              nextContent: previewPost.content,
+            });
+
+          if (shouldCreateRevision) {
+            prependRevision(
+              postId,
+              createPreviewRevision({
+                post: previewPost,
+                trigger: intent.trigger,
+                aiRunId: intent.aiRunId ?? null,
+                sourceId: intent.sourceId ?? null,
+              }),
+            );
+          }
           setIsDirty(false);
           return;
         }
