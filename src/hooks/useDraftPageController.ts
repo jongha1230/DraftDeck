@@ -70,6 +70,8 @@ export function useDraftPageController({
     notifications,
     hydrateSession,
     prependPost,
+    replacePost,
+    removePost,
     upsertPost,
     markPostDeleted,
     restoreDeletedPost,
@@ -111,6 +113,17 @@ export function useDraftPageController({
   const saveIntentsRef = useRef(new Map<string, SaveDraftOptions>());
   const savingPostIdsRef = useRef(new Set<string>());
   const queuedAfterSaveRef = useRef(new Map<string, SaveDraftOptions>());
+  const pendingCreateIdsRef = useRef(new Set<string>());
+  const deletedPostSnapshotsRef = useRef(
+    new Map<
+      string,
+      {
+        post: Post;
+        artifacts?: (typeof artifactsByPostId)[string];
+        isArtifactsLoaded: boolean;
+      }
+    >(),
+  );
 
   const fallbackState = useMemo(
     () =>
@@ -144,6 +157,11 @@ export function useDraftPageController({
   const activeArtifacts = resolvedActivePostId
     ? resolvedArtifactsByPostId[resolvedActivePostId] ?? EMPTY_DRAFT_ARTIFACTS
     : EMPTY_DRAFT_ARTIFACTS;
+
+  const isPendingCreatePostId = useCallback((postId: string | null | undefined) => {
+    if (!postId) return false;
+    return pendingCreateIdsRef.current.has(postId);
+  }, []);
 
   const syncSelectionText = useCallback(
     (nextSelection: string) => {
@@ -424,6 +442,9 @@ export function useDraftPageController({
   };
 
   const handleCreatePost = async () => {
+    const previousActivePostId = resolvedActivePostId;
+    let optimisticPostId: string | null = null;
+
     try {
       setIsSaving(true);
 
@@ -446,13 +467,44 @@ export function useDraftPageController({
         return;
       }
 
+      const optimisticPost = createOptimisticPost();
+      optimisticPostId = optimisticPost.id;
+      pendingCreateIdsRef.current.add(optimisticPost.id);
+      prependPost(optimisticPost);
+      closeSidebar();
+
       const { post, revision } = await createPostAction();
-      prependPost(post);
+      const liveOptimisticPost = useDraftStore
+        .getState()
+        .posts.find((item) => item.id === optimisticPost.id);
+      const hasLocalDraftChanges =
+        !!liveOptimisticPost &&
+        (liveOptimisticPost.title !== optimisticPost.title ||
+          liveOptimisticPost.content !== optimisticPost.content);
+      const replacedPost = liveOptimisticPost
+        ? {
+            ...post,
+            title: liveOptimisticPost.title,
+            content: liveOptimisticPost.content,
+          }
+        : post;
+
+      replacePost(optimisticPost.id, replacedPost);
       if (revision) {
         prependRevision(post.id, revision);
       }
-      closeSidebar();
+
+      pendingCreateIdsRef.current.delete(optimisticPost.id);
+
+      if (hasLocalDraftChanges) {
+        queueSave(post.id, { trigger: DraftRevisionTrigger.AUTOSAVE });
+      }
     } catch (error: unknown) {
+      if (optimisticPostId) {
+        pendingCreateIdsRef.current.delete(optimisticPostId);
+        removePost(optimisticPostId, previousActivePostId);
+      }
+
       const message =
         error instanceof Error
           ? error.message
@@ -471,6 +523,10 @@ export function useDraftPageController({
   const handlePreviewClose = () => setIsPreviewOpen(false);
 
   const handleDeletePost = async (post: Post) => {
+    const snapshotState = useDraftStore.getState();
+    const snapshotArtifacts = snapshotState.artifactsByPostId[post.id];
+    const snapshotLoaded = Boolean(snapshotState.loadedArtifactPostIds[post.id]);
+
     try {
       const deletedPost = isPreview
         ? {
@@ -478,11 +534,34 @@ export function useDraftPageController({
             deleted_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }
-        : await deletePostAction(post.id);
+        : {
+            ...post,
+            deleted_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+
+      deletedPostSnapshotsRef.current.set(post.id, {
+        post,
+        artifacts: snapshotArtifacts,
+        isArtifactsLoaded: snapshotLoaded,
+      });
 
       markPostDeleted(deletedPost);
       pushNotification("초안을 최근 삭제로 이동했습니다.", "success", "문서 삭제");
+
+      if (!isPreview) {
+        await deletePostAction(post.id);
+      }
     } catch (error: unknown) {
+      const snapshot = deletedPostSnapshotsRef.current.get(post.id);
+      if (snapshot) {
+        restoreDeletedPost(
+          snapshot.post,
+          snapshot.artifacts,
+          snapshot.isArtifactsLoaded,
+        );
+      }
+
       const message =
         error instanceof Error
           ? error.message
@@ -494,6 +573,8 @@ export function useDraftPageController({
   const handleRestoreDeletedPost = async (postId: string) => {
     const deletedPost = resolvedDeletedPosts.find((post) => post.id === postId);
     if (!deletedPost) return;
+    const previousActivePostId = resolvedActivePostId;
+    const snapshot = deletedPostSnapshotsRef.current.get(postId);
 
     try {
       const restoredPost = isPreview
@@ -502,11 +583,28 @@ export function useDraftPageController({
             deleted_at: null,
             updated_at: new Date().toISOString(),
           }
-        : await restoreDeletedPostAction(postId);
+        : {
+            ...deletedPost,
+            deleted_at: null,
+            updated_at: new Date().toISOString(),
+          };
 
-      restoreDeletedPost(restoredPost);
+      restoreDeletedPost(
+        restoredPost,
+        snapshot?.artifacts,
+        snapshot?.isArtifactsLoaded ?? false,
+      );
       pushNotification("최근 삭제 문서를 복구했습니다.", "success", "문서 복구");
+
+      if (!isPreview) {
+        await restoreDeletedPostAction(postId);
+      }
     } catch (error: unknown) {
+      markPostDeleted(deletedPost);
+      if (previousActivePostId && previousActivePostId !== deletedPost.id) {
+        setActivePostId(previousActivePostId);
+      }
+
       const message =
         error instanceof Error
           ? error.message
@@ -526,6 +624,8 @@ export function useDraftPageController({
         await permanentlyDeletePostAction(postId);
         removeDeletedPost(postId);
       }
+
+      deletedPostSnapshotsRef.current.delete(postId);
 
       pushNotification("최근 삭제 문서를 완전히 제거했습니다.", "success", "영구 삭제");
     } catch (error: unknown) {
@@ -725,12 +825,20 @@ export function useDraftPageController({
   const handleTitleChange = (title: string) => {
     if (!activePostId) return;
     updatePostLocally(activePostId, { title });
+    if (isPendingCreatePostId(activePostId)) {
+      setIsDirty(true);
+      return;
+    }
     queueSave(activePostId, { trigger: DraftRevisionTrigger.AUTOSAVE });
   };
 
   const handleContentChange = (content: string) => {
     if (!activePostId) return;
     updatePostLocally(activePostId, { content });
+    if (isPendingCreatePostId(activePostId)) {
+      setIsDirty(true);
+      return;
+    }
     queueSave(activePostId, { trigger: DraftRevisionTrigger.AUTOSAVE });
   };
 
@@ -907,5 +1015,21 @@ function mergeSaveIntent(
   return {
     ...previous,
     ...next,
+  };
+}
+
+function createOptimisticPost(): Post {
+  const timestamp = new Date().toISOString();
+
+  return {
+    id: `optimistic-post-${crypto.randomUUID()}`,
+    user_id: "local-pending-user",
+    title: "새 문서",
+    content: "",
+    is_published: false,
+    revision_number: 1,
+    deleted_at: null,
+    created_at: timestamp,
+    updated_at: timestamp,
   };
 }
