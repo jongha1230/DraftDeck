@@ -183,6 +183,12 @@ export async function deletePostRecord(postId: string) {
     .single();
 
   if (error) {
+    if (isDeletedAtSchemaError(error)) {
+      throw new Error(
+        "최근 삭제 기능이 아직 현재 데이터베이스에 적용되지 않았습니다. soft delete 마이그레이션을 먼저 반영해 주세요.",
+      );
+    }
+
     throw new Error(error.message);
   }
 
@@ -229,6 +235,12 @@ export async function restoreDeletedPostRecord(postId: string) {
     .single();
 
   if (error) {
+    if (isDeletedAtSchemaError(error)) {
+      throw new Error(
+        "최근 삭제 기능이 아직 현재 데이터베이스에 적용되지 않았습니다. soft delete 마이그레이션을 먼저 반영해 주세요.",
+      );
+    }
+
     throw new Error(error.message);
   }
 
