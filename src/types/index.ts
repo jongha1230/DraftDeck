@@ -7,6 +7,7 @@ export interface Post {
   content: string; // 마크다운 본문
   is_published: boolean;
   revision_number: number;
+  deleted_at: string | null;
   created_at: string; // 생성일
   updated_at: string; // 수정일
 }
@@ -34,16 +35,6 @@ export enum DraftRevisionTrigger {
 export enum AIRunStatus {
   SUCCESS = "SUCCESS",
   ERROR = "ERROR",
-}
-
-export interface User {
-  id: string;
-  email: string;
-}
-
-export interface AIResponse {
-  text: string;
-  error?: string;
 }
 
 export type ToastTone = "info" | "success" | "error";
@@ -157,7 +148,5 @@ export interface AIResultState {
   runId: string | null;
   sourceId: string | null;
 }
-
-export type AssistantPanelMode = "overview" | "selection" | "result";
 
 export type PreviewMode = "preview" | "raw";

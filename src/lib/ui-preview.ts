@@ -17,6 +17,7 @@ export interface PreviewUser {
 
 export interface PreviewSessionData {
   posts: Post[];
+  deletedPosts: Post[];
   activePostId: string | null;
   artifactsByPostId: Record<string, DraftArtifacts>;
 }
@@ -74,6 +75,7 @@ export const PREVIEW_POSTS: Post[] = [
 `,
     is_published: false,
     revision_number: 3,
+    deleted_at: null,
     created_at: new Date(now - 1000 * 60 * 60 * 24).toISOString(),
     updated_at: new Date(now - 1000 * 60 * 25).toISOString(),
   },
@@ -93,6 +95,7 @@ export const PREVIEW_POSTS: Post[] = [
 `,
     is_published: false,
     revision_number: 2,
+    deleted_at: null,
     created_at: new Date(now - 1000 * 60 * 60 * 48).toISOString(),
     updated_at: new Date(now - 1000 * 60 * 60 * 4).toISOString(),
   },
@@ -180,6 +183,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
 export function createDefaultPreviewSession(): PreviewSessionData {
   return {
     posts: structuredClone(PREVIEW_POSTS),
+    deletedPosts: [],
     activePostId: PREVIEW_POSTS[0]?.id ?? null,
     artifactsByPostId: structuredClone(PREVIEW_ARTIFACTS),
   };
@@ -201,6 +205,7 @@ export function readPreviewSession() {
 
     return {
       posts: parsed.posts?.length ? parsed.posts : createDefaultPreviewSession().posts,
+      deletedPosts: parsed.deletedPosts ?? createDefaultPreviewSession().deletedPosts,
       activePostId:
         parsed.activePostId ??
         parsed.posts?.[0]?.id ??
@@ -231,6 +236,7 @@ export function createPreviewPost(): Post {
     content: "",
     is_published: false,
     revision_number: 1,
+    deleted_at: null,
     created_at: timestamp,
     updated_at: timestamp,
   };
@@ -308,7 +314,7 @@ export function createPreviewAIResult(action: AIActionType, input: string): stri
 
   switch (action) {
     case AIActionType.SUMMARIZE:
-      return `## 요약\n\n${trimmed.slice(0, 180)}${trimmed.length > 180 ? "..." : ""}\n\n- 핵심 흐름을 유지하면서 문장을 짧게 정리했다.\n- 세부 표현은 편집 캔버스에서 이어서 다듬으면 된다.`;
+      return `## 핵심 요약\n\n${trimmed.slice(0, 240)}${trimmed.length > 240 ? "..." : ""}\n\n## 주요 포인트\n\n- 문제 배경과 사용자 요구를 먼저 유지했다.\n- 핵심 개념은 줄이지 않고 문장 길이만 정리했다.\n- 결과를 바로 붙여 넣기보다 초안 다듬기 출발점으로 쓰는 형식이다.\n\n## 남은 쟁점\n\n- 수치, 성능, 검증 결과는 원문 기준으로 다시 확인하는 편이 안전하다.`;
     case AIActionType.DEVELOPER_REWRITE:
       return `## 개발자 톤으로 다듬은 초안\n\n${trimmed.slice(0, 240)}\n\n이 문장은 구조를 더 명확히 하고, 모호한 표현을 줄이는 방향으로 정리할 수 있다.`;
     case AIActionType.TRANSLATE:

@@ -1,14 +1,11 @@
 import CustomButton from "@/components/ui/CustomButton";
-import { Download, Eye, Loader2, PanelLeft, PanelRight } from "lucide-react";
+import { Download, Eye, PanelLeft, PanelRight } from "lucide-react";
 
 interface DraftHeaderProps {
   title: string;
   hasActivePost: boolean;
-  isSaving: boolean;
-  isDirty: boolean;
   isAiLoading: boolean;
   isAssistantOpen: boolean;
-  revisionNumber: number | null;
   onTitleChange: (value: string) => void;
   onPreviewOpen: () => void;
   onExportMarkdown: () => void;
@@ -19,11 +16,8 @@ interface DraftHeaderProps {
 export default function DraftHeader({
   title,
   hasActivePost,
-  isSaving,
-  isDirty,
   isAiLoading,
   isAssistantOpen,
-  revisionNumber,
   onTitleChange,
   onPreviewOpen,
   onExportMarkdown,
@@ -32,7 +26,7 @@ export default function DraftHeader({
 }: DraftHeaderProps) {
   return (
     <header className="border-b border-[color:var(--app-line)] bg-white/80">
-      <div className="px-4 py-4 md:px-6 xl:px-8">
+      <div className="px-4 py-3 md:px-6 xl:px-8">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <button
@@ -44,84 +38,62 @@ export default function DraftHeader({
               <PanelLeft size={18} />
             </button>
 
-            <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--app-muted)]">
-                작업 공간
-              </p>
-              <p className="truncate text-sm font-medium text-[var(--app-ink)]">
-                DraftDeck
-              </p>
-            </div>
+            <p className="hidden text-[11px] uppercase tracking-[0.24em] text-[var(--app-muted)] sm:block">
+              DraftDeck
+            </p>
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
             <CustomButton
               variant="ghost"
               size="sm"
               onClick={onPreviewOpen}
               disabled={!hasActivePost || isAiLoading}
-              className="gap-2"
+              className="gap-2 px-2.5 sm:px-3"
+              aria-label="미리보기"
             >
               <Eye size={15} />
-              미리보기
+              <span className="hidden sm:inline">미리보기</span>
             </CustomButton>
             <CustomButton
               variant="ghost"
               size="sm"
               onClick={onExportMarkdown}
               disabled={!hasActivePost || isAiLoading}
-              className="gap-2"
+              className="gap-2 px-2.5 sm:px-3"
+              aria-label="Markdown 내보내기"
             >
               <Download size={15} />
-              Markdown 내보내기
+              <span className="hidden sm:inline">Markdown 내보내기</span>
             </CustomButton>
 
             <CustomButton
               size="sm"
               variant={isAssistantOpen ? "secondary" : "ghost"}
-              className="gap-2"
+              className="gap-2 px-2.5 sm:px-3 xl:hidden"
               onClick={onAssistantToggle}
               disabled={!hasActivePost && !isAssistantOpen}
+              aria-label={isAssistantOpen ? "패널 숨기기" : "패널 열기"}
             >
               <PanelRight size={15} />
-              {isAssistantOpen ? "도우미 숨기기" : "도우미"}
+              <span className="hidden sm:inline">
+                {isAssistantOpen ? "패널 숨기기" : "패널 열기"}
+              </span>
             </CustomButton>
           </div>
         </div>
 
         {hasActivePost ? (
-          <div className="mt-5">
+          <div className="mt-3">
             <input
               value={title}
               onChange={(event) => onTitleChange(event.target.value)}
               placeholder="제목 없는 문서"
-              className="w-full bg-transparent text-[2.4rem] font-semibold tracking-[-0.05em] text-[var(--app-ink)] placeholder:text-[color:rgba(102,112,133,0.56)] focus:outline-none md:text-[2.8rem]"
+              className="w-full bg-transparent text-[1.8rem] font-semibold leading-none tracking-[-0.05em] text-[var(--app-ink)] placeholder:text-[color:rgba(102,112,133,0.56)] focus:outline-none md:text-[2.3rem]"
             />
-
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[var(--app-muted)]">
-              <span className="inline-flex items-center gap-2">
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    isSaving ? "bg-[var(--app-primary)]" : "bg-emerald-500"
-                  }`}
-                />
-                {isSaving ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" />
-                    저장 중
-                  </>
-                ) : (
-                  isDirty ? "저장 대기 중" : "자동 저장됨"
-                )}
-              </span>
-              <span className="hidden h-4 w-px bg-[var(--app-line)] sm:block" />
-              <span>v{revisionNumber ?? 1}</span>
-              <span className="hidden h-4 w-px bg-[var(--app-line)] sm:block" />
-              <span>자료, AI 기록, 리비전을 오른쪽 패널에서 함께 확인합니다.</span>
-            </div>
           </div>
         ) : (
-          <div className="mt-5">
+          <div className="mt-4">
             <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[var(--app-ink)] md:text-4xl">
               시작할 문서를 선택하세요
             </h1>

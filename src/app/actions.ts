@@ -3,10 +3,14 @@
 import { executeAIAction } from "@/lib/ai/service";
 import {
   createPostRecord,
+  deleteDraftRevisionRecord,
   deletePostRecord,
   getDraftArtifactsRecord,
+  getRecentDeletedPostsRecord,
   getMyPostsRecord,
+  permanentlyDeletePostRecord,
   recordDraftSourceRecord,
+  restoreDeletedPostRecord,
   saveDraftRecord,
 } from "@/lib/drafts/persistence";
 import {
@@ -35,8 +39,24 @@ export async function getMyPostsAction() {
   return getMyPostsRecord();
 }
 
+export async function getRecentDeletedPostsAction() {
+  return getRecentDeletedPostsRecord();
+}
+
 export async function deletePostAction(postId: string) {
   return deletePostRecord(postId);
+}
+
+export async function restoreDeletedPostAction(postId: string) {
+  return restoreDeletedPostRecord(postId);
+}
+
+export async function permanentlyDeletePostAction(postId: string) {
+  return permanentlyDeletePostRecord(postId);
+}
+
+export async function deleteDraftRevisionAction(revisionId: string) {
+  return deleteDraftRevisionRecord(revisionId);
 }
 
 export async function getDraftArtifactsAction(postId: string) {

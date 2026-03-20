@@ -1,5 +1,5 @@
 // src/app/page.tsx
-import { getMyPostsAction } from "@/app/actions";
+import { getMyPostsAction, getRecentDeletedPostsAction } from "@/app/actions";
 import {
   PREVIEW_POSTS,
   PREVIEW_USER,
@@ -38,6 +38,12 @@ export default async function Page({ searchParams }: PageProps) {
   }
 
   const initialPosts = await getMyPostsAction();
+  const initialDeletedPosts = await getRecentDeletedPostsAction();
 
-  return <ClientPage initialPosts={initialPosts as Post[]} />;
+  return (
+    <ClientPage
+      initialPosts={initialPosts as Post[]}
+      initialDeletedPosts={initialDeletedPosts as Post[]}
+    />
+  );
 }

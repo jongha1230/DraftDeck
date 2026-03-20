@@ -26,6 +26,7 @@ export function normalizePostRecord(record: UnknownRecord): Post {
     content: String(record.content ?? ""),
     is_published: Boolean(record.is_published),
     revision_number: Number(record.revision_number ?? 1),
+    deleted_at: record.deleted_at ? String(record.deleted_at) : null,
     created_at: String(record.created_at ?? new Date(0).toISOString()),
     updated_at: String(record.updated_at ?? new Date(0).toISOString()),
   };

@@ -26,7 +26,7 @@ const STRICT_MARKDOWN_RULES = `
 `;
 
 const SYSTEM_PROMPTS = {
-  [AIActionType.SUMMARIZE]: `Role: expert technical editor. Task: Summarize the text. ${STRICT_MARKDOWN_RULES} Response in Korean.`,
+  [AIActionType.SUMMARIZE]: `Role: expert technical editor. Task: Create a usable Korean summary for a technical writing workflow. Preserve domain terms, the problem statement, the proposed approach, and any explicit outcomes. Do not over-compress into a single sentence. Prefer this structure when the input is substantial: "## 핵심 요약" with 2-4 sentences, then "## 주요 포인트" with 3-5 bullets, and "## 남은 쟁점" only if there are unresolved tradeoffs. ${STRICT_MARKDOWN_RULES}`,
   [AIActionType.DEVELOPER_REWRITE]: `Role: senior tech blogger. Task: Rewrite professionally. ${STRICT_MARKDOWN_RULES} Response in Korean.`,
   [AIActionType.TRANSLATE]: `Role: technical translator. Task: Natural Korean translation. ${STRICT_MARKDOWN_RULES}`,
   [AIActionType.SOURCE_TO_DRAFT]: `Role: professional ghostwriter. Task: Create a technical article draft with clear title, sections, and next steps. ${STRICT_MARKDOWN_RULES} Response in Korean.`,

@@ -4,10 +4,10 @@ import AssistantPanel from "@/components/draft/AssistantPanel";
 import DraftEditorPane from "@/components/draft/DraftEditorPane";
 import DraftHeader from "@/components/draft/DraftHeader";
 import EmptyDraftState from "@/components/draft/EmptyDraftState";
+import AIResultModal from "@/components/editor/AIResultModal";
 import SourceImportModal from "@/components/draft/SourceImportModal";
 import PreviewModal from "@/components/editor/PreviewModal";
 import Sidebar from "@/components/layout/Sidebar";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ToastViewport from "@/components/ui/ToastViewport";
 import { useDraftPageController } from "@/hooks/useDraftPageController";
 import { PreviewUser } from "@/lib/ui-preview";
@@ -16,17 +16,20 @@ import { AIActionType, Post } from "@/types";
 
 interface ClientPageProps {
   initialPosts: Post[];
+  initialDeletedPosts?: Post[];
   isPreview?: boolean;
   previewUser?: PreviewUser;
 }
 
 export default function ClientPage({
   initialPosts,
+  initialDeletedPosts = [],
   isPreview = false,
   previewUser,
 }: ClientPageProps) {
   const {
     posts,
+    deletedPosts,
     notifications,
     activePostId,
     activePost,
@@ -41,11 +44,9 @@ export default function ClientPage({
     isSidebarOpen,
     isAssistantOpen,
     isArtifactsLoading,
-    assistantPanelMode,
     isSourceModalOpen,
     isPreviewOpen,
     previewMode,
-    pendingDeletePost,
     contentScrollRef,
     setSourceInput,
     setPreviewMode,
@@ -56,50 +57,53 @@ export default function ClientPage({
     closeSidebar,
     handlePostSelect,
     handleCreatePost,
-    requestDeletePost,
-    cancelDeletePost,
-    confirmDeletePost,
+    handleDeletePost,
+    handleRestoreDeletedPost,
+    handlePermanentlyDeletePost,
     handlePreviewOpen,
     handlePreviewClose,
     handleAIAction,
     handleApplyAIResult,
     handleAppendAIResult,
+    handleEditorSelectionChange,
     handleTitleChange,
     handleContentChange,
     handleFileUpload,
     handleOpenImport,
     handleCloseImport,
     handleCloseAIResult,
+    handleRestoreRevision,
+    handleDeleteRevision,
     handleExportMarkdown,
-  } = useDraftPageController({ initialPosts, isPreview });
+  } = useDraftPageController({ initialPosts, initialDeletedPosts, isPreview });
 
   useUnsavedChanges();
 
   return (
     <div className="app-shell">
-      <div className="flex min-h-screen">
+      <div className="flex h-full min-h-0">
         <Sidebar
           posts={posts}
           activePostId={activePostId}
+          deletedPosts={deletedPosts}
           isOpen={isSidebarOpen}
           isPreview={isPreview}
           onClose={closeSidebar}
           onPostSelect={handlePostSelect}
           onPostCreate={() => void handleCreatePost()}
-          onPostDelete={requestDeletePost}
+          onPostDelete={(post) => void handleDeletePost(post)}
+          onPostRestore={(postId) => void handleRestoreDeletedPost(postId)}
+          onPostPurge={(postId) => void handlePermanentlyDeletePost(postId)}
           previewUser={previewUser}
         />
 
         <div className="flex min-w-0 flex-1">
-          <main className="flex min-w-0 flex-1 flex-col">
+          <main className="flex h-full min-w-0 flex-1 flex-col">
             <DraftHeader
               title={activePost?.title || ""}
               hasActivePost={!!activePost}
-              isSaving={isSaving}
-              isDirty={isDirty}
               isAiLoading={isAiLoading}
               isAssistantOpen={isAssistantOpen}
-              revisionNumber={activePost?.revision_number ?? null}
               onTitleChange={handleTitleChange}
               onPreviewOpen={() => handlePreviewOpen("preview")}
               onExportMarkdown={handleExportMarkdown}
@@ -111,53 +115,57 @@ export default function ClientPage({
               }
             />
 
-            <div className="flex min-h-0 flex-1">
+            <div className="relative flex min-h-0 flex-1 overflow-hidden">
               <section
                 ref={contentScrollRef}
-                className="app-scrollbar min-w-0 flex-1 overflow-y-auto px-4 pb-6 pt-5 md:px-6 md:pb-8 xl:px-10"
+                className="app-scrollbar min-w-0 flex-1 overflow-y-auto px-4 pb-6 pt-4 md:px-6 md:pb-8 xl:px-8 2xl:px-10"
               >
-                <div className="mx-auto w-full max-w-5xl">
+                <div className="mx-auto flex min-h-full w-full max-w-[78rem] xl:gap-6 2xl:max-w-[80rem] 2xl:gap-8">
+                  <div className="min-w-0 flex-1">
+                    {activePost ? (
+                      <DraftEditorPane
+                        post={activePost}
+                        selectionText={selectionText}
+                        isAiLoading={isAiLoading}
+                        isSaving={isSaving}
+                        isDirty={isDirty}
+                        onSelectionChange={handleEditorSelectionChange}
+                        onContentChange={handleContentChange}
+                        onRunSelectionAction={(action, selection) =>
+                          void handleAIAction(action, selection)
+                        }
+                      />
+                    ) : (
+                      <EmptyDraftState
+                        onCreatePost={() => void handleCreatePost()}
+                        onBrowseDrafts={toggleSidebar}
+                      />
+                    )}
+                  </div>
+
                   {activePost ? (
-                    <DraftEditorPane
-                      post={activePost}
-                      selectionText={selectionText}
-                      isAssistantOpen={isAssistantOpen}
-                      onOpenAssistant={() =>
-                        openAssistantPanel(
-                          selectionText ? "selection" : assistantPanelMode,
-                        )
-                      }
-                      onContentChange={handleContentChange}
+                    <div
+                      aria-hidden="true"
+                      className="hidden shrink-0 xl:block xl:w-[18.5rem] 2xl:w-[19rem]"
                     />
-                  ) : (
-                    <EmptyDraftState
-                      onCreatePost={() => void handleCreatePost()}
-                      onBrowseDrafts={toggleSidebar}
-                    />
-                  )}
+                  ) : null}
                 </div>
               </section>
 
               {activePost ? (
                 <AssistantPanel
                   isOpen={isAssistantOpen}
-                  mode={assistantPanelMode}
                   artifacts={activeArtifacts}
                   revisionNumber={activePost.revision_number}
-                  selectionText={selectionText}
-                  isAiLoading={isAiLoading}
                   isArtifactsLoading={isArtifactsLoading}
-                  aiResultText={aiResultText}
-                  onClose={closeAssistantPanel}
-                  onOpenImport={handleOpenImport}
-                  onOpenPreview={() => handlePreviewOpen("preview")}
-                  onExportMarkdown={handleExportMarkdown}
-                  onRunAction={(action, selection) =>
-                    void handleAIAction(action, selection)
+                  onToggle={() =>
+                    isAssistantOpen
+                      ? closeAssistantPanel()
+                      : openAssistantPanel()
                   }
-                  onApplyAIResult={handleApplyAIResult}
-                  onAppendAIResult={handleAppendAIResult}
-                  onCloseAIResult={handleCloseAIResult}
+                  onOpenImport={handleOpenImport}
+                  onRestoreRevision={handleRestoreRevision}
+                  onDeleteRevision={handleDeleteRevision}
                 />
               ) : null}
             </div>
@@ -186,13 +194,12 @@ export default function ClientPage({
         />
       ) : null}
 
-      <ConfirmDialog
-        open={!!pendingDeletePost}
-        title="이 초안을 삭제할까요?"
-        description={`"${pendingDeletePost?.title || "제목 없는 초안"}"는 삭제 후 복구할 수 없습니다.`}
-        confirmLabel="삭제하기"
-        onConfirm={() => void confirmDeletePost()}
-        onCancel={cancelDeletePost}
+      <AIResultModal
+        text={aiResultText}
+        isStreaming={isAiLoading}
+        onApply={handleApplyAIResult}
+        onAppend={handleAppendAIResult}
+        onClose={handleCloseAIResult}
       />
 
       <ToastViewport items={notifications} onDismiss={dismissNotification} />

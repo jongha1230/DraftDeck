@@ -27,21 +27,21 @@ export default function UserProfile({
   };
 
   return (
-    <div className="border-t border-[color:var(--app-line)] pt-4">
-      <div className="flex items-center justify-between gap-3 rounded-[22px] border border-[color:var(--app-line)] bg-[var(--app-surface-muted)] p-3">
+    <div className="rounded-[20px] border border-[color:var(--app-line)] bg-[var(--app-surface-muted)] p-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           {avatarUrl ? (
-            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[color:var(--app-line)]">
+            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-[color:var(--app-line)]">
               <Image
                 src={avatarUrl}
                 alt="User Avatar"
                 fill
                 className="object-cover"
-                sizes="40px"
+                sizes="36px"
               />
             </div>
           ) : (
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--app-primary-soft)] text-xs font-semibold text-[var(--app-primary)]">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--app-primary-soft)] text-xs font-semibold text-[var(--app-primary)]">
               {email.slice(0, 2).toUpperCase()}
             </div>
           )}
@@ -53,14 +53,14 @@ export default function UserProfile({
             >
               {email}
             </p>
-            <p className="mt-1 text-xs text-[var(--app-muted)]">
+            <p className="mt-0.5 text-xs text-[var(--app-muted)]">
               Personal Studio
             </p>
           </div>
         </div>
 
         {isPreview ? (
-          <span className="rounded-full border border-[color:var(--app-line)] bg-white px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[var(--app-muted)]">
+          <span className="rounded-full border border-[color:var(--app-line)] bg-white px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-[var(--app-muted)]">
             Preview
           </span>
         ) : (
