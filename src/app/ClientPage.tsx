@@ -79,6 +79,9 @@ export default function ClientPage({
 
   useUnsavedChanges();
 
+  const displayRevisionNumber =
+    activeArtifacts.revisions.length > 0 ? activeArtifacts.revisions.length : 1;
+
   return (
     <div className="app-shell">
       <div className="flex h-full min-h-0">
@@ -129,6 +132,7 @@ export default function ClientPage({
                         isAiLoading={isAiLoading}
                         isSaving={isSaving}
                         isDirty={isDirty}
+                        displayRevisionNumber={displayRevisionNumber}
                         onSelectionChange={handleEditorSelectionChange}
                         onContentChange={handleContentChange}
                         onRunSelectionAction={(action, selection) =>
@@ -156,7 +160,7 @@ export default function ClientPage({
                 <AssistantPanel
                   isOpen={isAssistantOpen}
                   artifacts={activeArtifacts}
-                  revisionNumber={activePost.revision_number}
+                  displayRevisionNumber={displayRevisionNumber}
                   isArtifactsLoading={isArtifactsLoading}
                   onToggle={() =>
                     isAssistantOpen

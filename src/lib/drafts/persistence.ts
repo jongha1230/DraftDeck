@@ -19,6 +19,7 @@ import {
   normalizeDraftRevisionRecord,
   normalizeDraftSourceRecord,
   normalizePostRecord,
+  shouldCreateAutosaveCheckpoint,
 } from "./records";
 
 type UnknownRecord = Record<string, unknown>;
@@ -429,6 +430,22 @@ async function insertDraftRevisionRecord(
 ): Promise<DraftRevision | null> {
   const { supabase, user } = await getAuthenticatedContext();
 
+  if (trigger === DraftRevisionTrigger.AUTOSAVE) {
+    const latestRevision = await getLatestDraftRevisionRecord(supabase, user.id, post.id);
+
+    if (
+      latestRevision &&
+      !shouldCreateAutosaveCheckpoint({
+        previousTitle: latestRevision.title,
+        previousContent: latestRevision.content,
+        nextTitle: post.title,
+        nextContent: post.content,
+      })
+    ) {
+      return null;
+    }
+  }
+
   const { data, error } = await supabase
     .from("draft_revisions")
     .insert({
@@ -529,6 +546,31 @@ async function safeSelectAIRuns(
   }
 
   return (data ?? []).map((record) => normalizeAIRunRecord(record as UnknownRecord));
+}
+
+async function getLatestDraftRevisionRecord(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  postId: string,
+) {
+  const { data, error } = await supabase
+    .from("draft_revisions")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("post_id", postId)
+    .order("revision_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    if (isOptionalTableError(error)) {
+      return null;
+    }
+
+    throw new Error(error.message);
+  }
+
+  return data ? normalizeDraftRevisionRecord(data as UnknownRecord) : null;
 }
 
 function isOptionalTableError(error: { message?: string } | null) {

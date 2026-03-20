@@ -17,7 +17,7 @@ import { ReactNode, useMemo } from "react";
 interface AssistantPanelProps {
   isOpen: boolean;
   artifacts: DraftArtifacts;
-  revisionNumber: number;
+  displayRevisionNumber: number;
   isArtifactsLoading: boolean;
   onToggle: () => void;
   onOpenImport: () => void;
@@ -46,25 +46,13 @@ function PanelSection({ icon, title, children }: PanelSectionProps) {
 export default function AssistantPanel({
   isOpen,
   artifacts,
-  revisionNumber,
+  displayRevisionNumber,
   isArtifactsLoading,
   onToggle,
   onOpenImport,
   onRestoreRevision,
   onDeleteRevision,
 }: AssistantPanelProps) {
-  const recentSources = artifacts.sources.slice(0, 2);
-  const revisionByAiRunId = useMemo(() => {
-    const map = new Map<string, number>();
-
-    for (const revision of artifacts.revisions) {
-      if (revision.ai_run_id) {
-        map.set(revision.ai_run_id, revision.revision_number);
-      }
-    }
-
-    return map;
-  }, [artifacts.revisions]);
   const recentRevisions = useMemo(() => {
     const seen = new Set<number>();
 
@@ -79,7 +67,36 @@ export default function AssistantPanel({
       })
       .slice(0, 3);
   }, [artifacts.revisions]);
+
+  const recentSources = artifacts.sources.slice(0, 2);
   const recentAIRuns = artifacts.aiRuns.slice(0, 2);
+
+  const revisionDisplayMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const total = recentRevisions.length;
+
+    recentRevisions.forEach((revision, index) => {
+      map.set(revision.id, total - index);
+    });
+
+    return map;
+  }, [recentRevisions]);
+
+  const revisionByAiRunId = useMemo(() => {
+    const map = new Map<string, number>();
+
+    for (const revision of recentRevisions) {
+      if (revision.ai_run_id) {
+        map.set(
+          revision.ai_run_id,
+          revisionDisplayMap.get(revision.id) ?? displayRevisionNumber,
+        );
+      }
+    }
+
+    return map;
+  }, [displayRevisionNumber, recentRevisions, revisionDisplayMap]);
+
   return (
     <>
       <button
@@ -95,7 +112,7 @@ export default function AssistantPanel({
         type="button"
         onClick={onToggle}
         aria-label={isOpen ? "도우미 패널 접기" : "도우미 패널 펼치기"}
-        className={`hidden xl:flex absolute top-1/2 z-30 h-12 w-7 -translate-y-1/2 items-center justify-center rounded-l-2xl border border-r-0 border-[color:var(--app-line)] bg-white text-[var(--app-muted)] shadow-[0_12px_32px_-24px_rgba(15,23,42,0.45)] transition hover:text-[var(--app-ink)] ${
+        className={`absolute top-1/2 z-30 hidden h-12 w-7 -translate-y-1/2 items-center justify-center rounded-l-2xl border border-r-0 border-[color:var(--app-line)] bg-white text-[var(--app-muted)] shadow-[0_12px_32px_-24px_rgba(15,23,42,0.45)] transition hover:text-[var(--app-ink)] xl:flex ${
           isOpen ? "right-[18.5rem] 2xl:right-[19rem]" : "right-0"
         }`}
       >
@@ -115,7 +132,7 @@ export default function AssistantPanel({
               도우미 패널
             </p>
             <p className="mt-1 text-sm leading-6 text-[var(--app-muted)]">
-              현재 문서 v{revisionNumber}
+              현재 문서 v{displayRevisionNumber}
             </p>
           </div>
 
@@ -141,131 +158,136 @@ export default function AssistantPanel({
           </CustomButton>
         </section>
 
-        <PanelSection
-          icon={<FileText size={15} className="text-[var(--app-primary)]" />}
-          title="최근 자료"
-        >
-          {isArtifactsLoading ? (
-            <p className="mt-3 text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
-          ) : artifacts.sources.length === 0 ? (
-            <p className="mt-3 text-sm leading-6 text-[var(--app-muted)]">
-              아직 가져온 자료가 없습니다.
-            </p>
-          ) : (
-            <div className="mt-3 space-y-2">
-              {recentSources.map((source) => (
-                <div
-                  key={source.id}
-                  className="rounded-[18px] border border-[color:var(--app-line)] bg-white px-4 py-3"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="truncate text-sm font-semibold text-[var(--app-ink)]">
-                      {source.label}
-                    </p>
-                    <span className="text-xs text-[var(--app-muted)]">
-                      {formatRecordDate(source.created_at)}
-                    </span>
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--app-muted)]">
-                    {source.content}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </PanelSection>
-
-        <PanelSection
-          icon={<History size={15} className="text-[var(--app-primary)]" />}
-          title="최근 버전"
-        >
-          {isArtifactsLoading ? (
-            <p className="mt-3 text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
-          ) : artifacts.revisions.length === 0 ? (
-            <p className="mt-3 text-sm leading-6 text-[var(--app-muted)]">
-              아직 저장 이력이 없습니다.
-            </p>
-          ) : (
-            <div className="app-scrollbar mt-3 max-h-[22rem] space-y-2 overflow-y-auto pr-1">
-              {recentRevisions.map((revision) => (
-                <div
-                  key={revision.id}
-                  className="rounded-[18px] border border-[color:var(--app-line)] bg-white px-4 py-3"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-[var(--app-ink)]">
-                        v{revision.revision_number}
+        <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto pr-1">
+          <PanelSection
+            icon={<FileText size={15} className="text-[var(--app-primary)]" />}
+            title="최근 자료"
+          >
+            {isArtifactsLoading ? (
+              <p className="mt-3 text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
+            ) : artifacts.sources.length === 0 ? (
+              <p className="mt-3 text-sm leading-6 text-[var(--app-muted)]">
+                아직 가져온 자료가 없습니다.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {recentSources.map((source) => (
+                  <div
+                    key={source.id}
+                    className="rounded-[18px] border border-[color:var(--app-line)] bg-white px-4 py-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate text-sm font-semibold text-[var(--app-ink)]">
+                        {source.label}
                       </p>
-                      <p className="mt-1 text-sm leading-6 text-[var(--app-muted)]">
-                        {getRevisionTriggerLabel(revision.trigger)}
+                      <span className="text-xs text-[var(--app-muted)]">
+                        {formatRecordDate(source.created_at)}
+                      </span>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--app-muted)]">
+                      {source.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </PanelSection>
+
+          <PanelSection
+            icon={<History size={15} className="text-[var(--app-primary)]" />}
+            title="최근 버전"
+          >
+            {isArtifactsLoading ? (
+              <p className="mt-3 text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
+            ) : artifacts.revisions.length === 0 ? (
+              <p className="mt-3 text-sm leading-6 text-[var(--app-muted)]">
+                아직 저장 이력이 없습니다.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {recentRevisions.map((revision) => (
+                  <div
+                    key={revision.id}
+                    className="rounded-[18px] border border-[color:var(--app-line)] bg-white px-4 py-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-[var(--app-ink)]">
+                          v{revisionDisplayMap.get(revision.id) ?? displayRevisionNumber}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-[var(--app-muted)]">
+                          {getRevisionTriggerLabel(revision.trigger)}
+                        </p>
+                      </div>
+                      <span className="text-xs text-[var(--app-muted)]">
+                        {formatRecordDate(revision.created_at)}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => onDeleteRevision(revision.id)}
+                        className="inline-flex items-center gap-1 text-xs text-[var(--app-muted)] transition hover:text-[var(--app-danger)]"
+                        aria-label={`v${revisionDisplayMap.get(revision.id) ?? displayRevisionNumber} 삭제`}
+                        disabled={revision.trigger === DraftRevisionTrigger.CREATE}
+                      >
+                        <Trash2 size={13} />
+                        삭제
+                      </button>
+                      <CustomButton
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="px-0 text-[var(--app-primary)] hover:bg-transparent hover:text-[var(--app-primary-strong)]"
+                        onClick={() => onRestoreRevision(revision.id)}
+                      >
+                        이 버전으로 되돌리기
+                      </CustomButton>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </PanelSection>
+
+          <PanelSection
+            icon={<Sparkles size={15} className="text-[var(--app-primary)]" />}
+            title="AI 실행 기록"
+          >
+            {isArtifactsLoading ? (
+              <p className="mt-3 text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
+            ) : artifacts.aiRuns.length === 0 ? (
+              <p className="mt-3 text-sm leading-6 text-[var(--app-muted)]">
+                아직 AI 실행 기록이 없습니다.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-1.5 pb-2">
+                {recentAIRuns.map((run) => (
+                  <div
+                    key={run.id}
+                    className="flex items-center justify-between gap-3 rounded-[16px] border border-[color:var(--app-line)] bg-white px-3 py-2.5"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Sparkles
+                        size={13}
+                        className="shrink-0 text-[var(--app-primary)]"
+                      />
+                      <p className="truncate text-sm font-medium text-[var(--app-ink)]">
+                        {getAIActionLabel(run.action)}
+                        {revisionByAiRunId.get(run.id)
+                          ? ` · v${revisionByAiRunId.get(run.id)}`
+                          : ""}
                       </p>
                     </div>
-                    <span className="text-xs text-[var(--app-muted)]">
-                      {formatRecordDate(revision.created_at)}
+                    <span className="shrink-0 text-xs text-[var(--app-muted)]">
+                      {formatRecordDate(run.created_at)}
                     </span>
                   </div>
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      onClick={() => onDeleteRevision(revision.id)}
-                      className="inline-flex items-center gap-1 text-xs text-[var(--app-muted)] transition hover:text-[var(--app-danger)]"
-                      aria-label={`v${revision.revision_number} 삭제`}
-                      disabled={revision.trigger === DraftRevisionTrigger.CREATE}
-                    >
-                      <Trash2 size={13} />
-                      삭제
-                    </button>
-                    <CustomButton
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="px-0 text-[var(--app-primary)] hover:bg-transparent hover:text-[var(--app-primary-strong)]"
-                      onClick={() => onRestoreRevision(revision.id)}
-                    >
-                      이 버전으로 되돌리기
-                    </CustomButton>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </PanelSection>
-
-        <PanelSection
-          icon={<Sparkles size={15} className="text-[var(--app-primary)]" />}
-          title="AI 실행 기록"
-        >
-          {isArtifactsLoading ? (
-            <p className="mt-3 text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
-          ) : artifacts.aiRuns.length === 0 ? (
-            <p className="mt-3 text-sm leading-6 text-[var(--app-muted)]">
-              아직 AI 실행 기록이 없습니다.
-            </p>
-          ) : (
-            <div className="mt-3 space-y-1.5 pb-2">
-              {recentAIRuns.map((run) => (
-                <div
-                  key={run.id}
-                  className="flex items-center justify-between gap-3 rounded-[16px] border border-[color:var(--app-line)] bg-white px-3 py-2.5"
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Sparkles size={13} className="shrink-0 text-[var(--app-primary)]" />
-                    <p className="truncate text-sm font-medium text-[var(--app-ink)]">
-                      {getAIActionLabel(run.action)}
-                      {revisionByAiRunId.get(run.id)
-                        ? ` · v${revisionByAiRunId.get(run.id)}`
-                        : ""}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-xs text-[var(--app-muted)]">
-                    {formatRecordDate(run.created_at)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </PanelSection>
+                ))}
+              </div>
+            )}
+          </PanelSection>
+        </div>
       </aside>
     </>
   );
