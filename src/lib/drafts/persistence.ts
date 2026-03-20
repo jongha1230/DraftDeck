@@ -130,6 +130,7 @@ export async function saveDraftRecord(
   const revision = await insertDraftRevisionRecord(updatedPost, options.trigger, {
     aiRunId: options.aiRunId,
     sourceId: options.sourceId,
+    createCheckpoint: options.createCheckpoint,
   });
 
   return {
