@@ -28,17 +28,27 @@ interface AssistantPanelProps {
 interface PanelSectionProps {
   icon: ReactNode;
   title: string;
+  className?: string;
+  bodyClassName?: string;
   children: ReactNode;
 }
 
-function PanelSection({ icon, title, children }: PanelSectionProps) {
+function PanelSection({
+  icon,
+  title,
+  className = "",
+  bodyClassName = "",
+  children,
+}: PanelSectionProps) {
   return (
-    <section className="mt-5 border-t border-[color:var(--app-line)] pt-5">
+    <section className={`flex min-h-0 flex-col border-t border-[color:var(--app-line)] pt-5 ${className}`}>
       <div className="flex items-center gap-2">
         {icon}
         <p className="text-sm font-semibold text-[var(--app-ink)]">{title}</p>
       </div>
-      {children}
+      <div className={`app-scrollbar mt-3 min-h-0 overflow-y-auto pr-1 ${bodyClassName}`}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -158,19 +168,20 @@ export default function AssistantPanel({
           </CustomButton>
         </section>
 
-        <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto pr-1">
+        <div className="mt-5 min-h-0 flex flex-1 flex-col gap-5 overflow-hidden">
           <PanelSection
             icon={<FileText size={15} className="text-[var(--app-primary)]" />}
             title="최근 자료"
+            className="min-h-[8.75rem] xl:min-h-[9rem]"
           >
             {isArtifactsLoading ? (
-              <p className="mt-3 text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
+              <p className="text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
             ) : artifacts.sources.length === 0 ? (
-              <p className="mt-3 text-sm leading-6 text-[var(--app-muted)]">
+              <p className="text-sm leading-6 text-[var(--app-muted)]">
                 아직 가져온 자료가 없습니다.
               </p>
             ) : (
-              <div className="mt-3 space-y-2">
+              <div className="space-y-2">
                 {recentSources.map((source) => (
                   <div
                     key={source.id}
@@ -196,15 +207,16 @@ export default function AssistantPanel({
           <PanelSection
             icon={<History size={15} className="text-[var(--app-primary)]" />}
             title="최근 버전"
+            className="min-h-0 flex-1"
           >
             {isArtifactsLoading ? (
-              <p className="mt-3 text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
+              <p className="text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
             ) : artifacts.revisions.length === 0 ? (
-              <p className="mt-3 text-sm leading-6 text-[var(--app-muted)]">
+              <p className="text-sm leading-6 text-[var(--app-muted)]">
                 아직 저장 이력이 없습니다.
               </p>
             ) : (
-              <div className="mt-3 space-y-2">
+              <div className="space-y-2">
                 {recentRevisions.map((revision) => (
                   <div
                     key={revision.id}
@@ -253,15 +265,16 @@ export default function AssistantPanel({
           <PanelSection
             icon={<Sparkles size={15} className="text-[var(--app-primary)]" />}
             title="AI 실행 기록"
+            className="min-h-[8.5rem] xl:min-h-[9rem]"
           >
             {isArtifactsLoading ? (
-              <p className="mt-3 text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
+              <p className="text-sm text-[var(--app-muted)]">기록 불러오는 중</p>
             ) : artifacts.aiRuns.length === 0 ? (
-              <p className="mt-3 text-sm leading-6 text-[var(--app-muted)]">
+              <p className="text-sm leading-6 text-[var(--app-muted)]">
                 아직 AI 실행 기록이 없습니다.
               </p>
             ) : (
-              <div className="mt-3 space-y-1.5 pb-2">
+              <div className="space-y-1.5 pb-2">
                 {recentAIRuns.map((run) => (
                   <div
                     key={run.id}
