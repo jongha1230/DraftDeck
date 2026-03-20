@@ -56,16 +56,6 @@ export async function saveDraftRecord(
   const { supabase, user } = await getAuthenticatedContext();
   const currentPost = await getPostById(supabase, input.postId, user.id);
 
-  if (currentPost.revision_number !== input.expectedRevision) {
-    return {
-      ok: false,
-      reason: "conflict",
-      post: currentPost,
-      message:
-        "다른 변경이 먼저 저장되어 최신 문서를 다시 불러왔습니다. 변경 내용을 검토한 뒤 다시 저장해 주세요.",
-    };
-  }
-
   const nextRevisionNumber = currentPost.revision_number + 1;
   const updatePayload = {
     title: input.title,
@@ -79,7 +69,7 @@ export async function saveDraftRecord(
     .update(updatePayload)
     .eq("id", input.postId)
     .eq("user_id", user.id)
-    .eq("revision_number", currentPost.revision_number)
+    .eq("revision_number", input.expectedRevision)
     .select("*")
     .single();
 
@@ -110,7 +100,10 @@ export async function saveDraftRecord(
       };
     }
 
-    updatedPost = normalizePostRecord(fallbackResult.data as UnknownRecord);
+    updatedPost = {
+      ...normalizePostRecord(fallbackResult.data as UnknownRecord),
+      revision_number: input.expectedRevision + 1,
+    };
   } else if (isNoRowReturnedError(revisionAwareResult.error)) {
     const latestPost = await getPostById(supabase, input.postId, user.id);
 
@@ -146,11 +139,26 @@ export async function saveDraftRecord(
 export async function getMyPostsRecord() {
   const { supabase, user } = await getAuthenticatedContext();
 
-  const { data, error } = await supabase
+  const activeResult = await supabase
     .from("posts")
     .select("*")
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .order("updated_at", { ascending: false });
+
+  let data = activeResult.data;
+  let error = activeResult.error;
+
+  if (isDeletedAtSchemaError(error)) {
+    const fallbackResult = await supabase
+      .from("posts")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false });
+
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
 
   if (error) {
     throw new Error(error.message);
@@ -160,6 +168,74 @@ export async function getMyPostsRecord() {
 }
 
 export async function deletePostRecord(postId: string) {
+  const { supabase, user } = await getAuthenticatedContext();
+  const timestamp = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("posts")
+    .update({
+      deleted_at: timestamp,
+      updated_at: timestamp,
+    })
+    .eq("id", postId)
+    .eq("user_id", user.id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return normalizePostRecord(data as UnknownRecord);
+}
+
+export async function getRecentDeletedPostsRecord(limit = 3) {
+  const { supabase, user } = await getAuthenticatedContext();
+
+  const recentDeletedResult = await supabase
+    .from("posts")
+    .select("*")
+    .eq("user_id", user.id)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false })
+    .limit(limit);
+
+  if (isDeletedAtSchemaError(recentDeletedResult.error)) {
+    return [];
+  }
+
+  if (recentDeletedResult.error) {
+    throw new Error(recentDeletedResult.error.message);
+  }
+
+  return (recentDeletedResult.data ?? []).map((record) =>
+    normalizePostRecord(record as UnknownRecord),
+  );
+}
+
+export async function restoreDeletedPostRecord(postId: string) {
+  const { supabase, user } = await getAuthenticatedContext();
+  const timestamp = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("posts")
+    .update({
+      deleted_at: null,
+      updated_at: timestamp,
+    })
+    .eq("id", postId)
+    .eq("user_id", user.id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return normalizePostRecord(data as UnknownRecord);
+}
+
+export async function permanentlyDeletePostRecord(postId: string) {
   const { supabase, user } = await getAuthenticatedContext();
 
   const { error } = await supabase
@@ -172,7 +248,7 @@ export async function deletePostRecord(postId: string) {
     throw new Error(error.message);
   }
 
-  return true;
+  return postId;
 }
 
 export async function getDraftArtifactsRecord(postId: string): Promise<DraftArtifacts> {
@@ -188,6 +264,26 @@ export async function getDraftArtifactsRecord(postId: string): Promise<DraftArti
     revisions,
     aiRuns,
   };
+}
+
+export async function deleteDraftRevisionRecord(revisionId: string) {
+  const { supabase, user } = await getAuthenticatedContext();
+
+  const { error } = await supabase
+    .from("draft_revisions")
+    .delete()
+    .eq("id", revisionId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    if (isOptionalTableError(error)) {
+      return false;
+    }
+
+    throw new Error(error.message);
+  }
+
+  return true;
 }
 
 export async function recordDraftSourceRecord(
@@ -445,6 +541,14 @@ function isRevisionSchemaError(error: { message?: string } | null) {
     error.message.includes("revision_number") ||
     error.message.includes("schema cache")
   );
+}
+
+function isDeletedAtSchemaError(error: { message?: string } | null) {
+  if (!error?.message) {
+    return false;
+  }
+
+  return error.message.includes("deleted_at") || error.message.includes("schema cache");
 }
 
 function isNoRowReturnedError(error: { message?: string } | null) {

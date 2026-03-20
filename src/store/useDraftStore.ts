@@ -3,6 +3,7 @@ import { create } from "zustand";
 
 interface DraftState {
   posts: Post[];
+  deletedPosts: Post[];
   activePostId: string | null;
   artifactsByPostId: Record<string, DraftArtifacts>;
   loadedArtifactPostIds: Record<string, boolean>;
@@ -14,18 +15,22 @@ interface DraftState {
 
   hydrateSession: (input: {
     posts: Post[];
+    deletedPosts?: Post[];
     activePostId: string | null;
     artifactsByPostId?: Record<string, DraftArtifacts>;
   }) => void;
   setPosts: (posts: Post[]) => void;
   prependPost: (post: Post) => void;
   upsertPost: (post: Post) => void;
-  removePost: (id: string) => void;
+  markPostDeleted: (post: Post) => void;
+  restoreDeletedPost: (post: Post) => void;
+  removeDeletedPost: (postId: string) => void;
   setActivePostId: (id: string | null) => void;
   setArtifacts: (postId: string, artifacts: DraftArtifacts) => void;
   markArtifactsLoaded: (postId: string) => void;
   prependSource: (postId: string, source: DraftSource) => void;
   prependRevision: (postId: string, revision: DraftRevision) => void;
+  removeRevision: (postId: string, revisionId: string) => void;
   prependAIRun: (postId: string, run: AIRun) => void;
   setIsSaving: (saving: boolean) => void;
   setIsDirty: (dirty: boolean) => void;
@@ -84,6 +89,7 @@ export const useDraftStore = create<DraftState>((set) => {
 
   return {
     posts: [],
+    deletedPosts: [],
     activePostId: null,
     artifactsByPostId: {},
     loadedArtifactPostIds: {},
@@ -93,9 +99,15 @@ export const useDraftStore = create<DraftState>((set) => {
     aiResult: null,
     notifications: [],
 
-    hydrateSession: ({ posts, activePostId, artifactsByPostId = {} }) =>
+    hydrateSession: ({
+      posts,
+      deletedPosts = [],
+      activePostId,
+      artifactsByPostId = {},
+    }) =>
       set({
         posts,
+        deletedPosts,
         activePostId,
         artifactsByPostId,
         loadedArtifactPostIds: Object.fromEntries(
@@ -119,23 +131,41 @@ export const useDraftStore = create<DraftState>((set) => {
           ? state.posts.map((item) => (item.id === post.id ? post : item))
           : [post, ...state.posts],
       })),
-    removePost: (id) =>
+    markPostDeleted: (post) =>
       set((state) => {
-        const nextPosts = state.posts.filter((post) => post.id !== id);
-        const { [id]: removedArtifacts, ...restArtifacts } = state.artifactsByPostId;
-        const { [id]: removedLoaded, ...restLoaded } = state.loadedArtifactPostIds;
+        const nextPosts = state.posts.filter((item) => item.id !== post.id);
+        const { [post.id]: removedArtifacts, ...restArtifacts } =
+          state.artifactsByPostId;
+        const { [post.id]: removedLoaded, ...restLoaded } =
+          state.loadedArtifactPostIds;
         void removedArtifacts;
         void removedLoaded;
 
         return {
           posts: nextPosts,
+          deletedPosts: [post, ...state.deletedPosts.filter((item) => item.id !== post.id)].slice(
+            0,
+            3,
+          ),
           activePostId:
-            state.activePostId === id ? nextPosts[0]?.id ?? null : state.activePostId,
+            state.activePostId === post.id
+              ? nextPosts[0]?.id ?? null
+              : state.activePostId,
           artifactsByPostId: restArtifacts,
           loadedArtifactPostIds: restLoaded,
           isDirty: false,
         };
       }),
+    restoreDeletedPost: (post) =>
+      set((state) => ({
+        posts: [post, ...state.posts.filter((item) => item.id !== post.id)],
+        deletedPosts: state.deletedPosts.filter((item) => item.id !== post.id),
+        activePostId: post.id,
+      })),
+    removeDeletedPost: (postId) =>
+      set((state) => ({
+        deletedPosts: state.deletedPosts.filter((item) => item.id !== postId),
+      })),
     setActivePostId: (id) =>
       set({
         activePostId: id,
@@ -187,6 +217,22 @@ export const useDraftStore = create<DraftState>((set) => {
               revision,
               ...(state.artifactsByPostId[postId]?.revisions ?? []),
             ].slice(0, 6),
+          },
+        },
+        loadedArtifactPostIds: {
+          ...state.loadedArtifactPostIds,
+          [postId]: true,
+        },
+      })),
+    removeRevision: (postId, revisionId) =>
+      set((state) => ({
+        artifactsByPostId: {
+          ...state.artifactsByPostId,
+          [postId]: {
+            ...(state.artifactsByPostId[postId] ?? emptyArtifacts()),
+            revisions: (state.artifactsByPostId[postId]?.revisions ?? []).filter(
+              (revision) => revision.id !== revisionId,
+            ),
           },
         },
         loadedArtifactPostIds: {

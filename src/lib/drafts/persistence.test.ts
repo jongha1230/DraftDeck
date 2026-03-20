@@ -12,28 +12,54 @@ describe("saveDraftRecord", () => {
   });
 
   it("rejects stale revision saves with a conflict result", async () => {
-    const single = vi.fn().mockResolvedValue({
-      data: {
-        id: "post-1",
-        user_id: "user-1",
-        title: "server title",
-        content: "server content",
-        is_published: false,
-        revision_number: 3,
-        created_at: "2026-03-19T00:00:00.000Z",
-        updated_at: "2026-03-19T00:00:00.000Z",
-      },
+    const serverPost = {
+      id: "post-1",
+      user_id: "user-1",
+      title: "server title",
+      content: "server content",
+      is_published: false,
+      revision_number: 3,
+      created_at: "2026-03-19T00:00:00.000Z",
+      updated_at: "2026-03-19T00:00:00.000Z",
+    };
+
+    const selectSingle = vi.fn().mockResolvedValue({
+      data: serverPost,
       error: null,
     });
 
-    const eqChain = {
+    const updateSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: "JSON object requested, multiple (or no) rows returned" },
+    });
+
+    const selectEqChain = {
       eq: vi.fn().mockReturnThis(),
-      single,
+      single: selectSingle,
+    };
+
+    const updateSelectChain = {
+      single: updateSingle,
+    };
+
+    const updateEqChain = {
+      eq: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnValue(updateSelectChain),
     };
 
     const selectChain = {
-      select: vi.fn().mockReturnValue(eqChain),
+      select: vi.fn().mockReturnValue(selectEqChain),
     };
+
+    const updateChain = {
+      update: vi.fn().mockReturnValue(updateEqChain),
+    };
+
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(selectChain)
+      .mockReturnValueOnce(updateChain)
+      .mockReturnValueOnce(selectChain);
 
     const mockedClient = {
       auth: {
@@ -41,7 +67,7 @@ describe("saveDraftRecord", () => {
           data: { user: { id: "user-1" } },
         }),
       },
-      from: vi.fn().mockReturnValue(selectChain),
+      from,
     };
 
     const { createClient } = await import("@/lib/supabase/server");
@@ -67,6 +93,13 @@ describe("saveDraftRecord", () => {
     }
     expect(result.reason).toBe("conflict");
     expect(result.post.revision_number).toBe(3);
-    expect(mockedClient.from).toHaveBeenCalledWith("posts");
+    expect(from).toHaveBeenCalledWith("posts");
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "local title",
+        content: "local content",
+        revision_number: 4,
+      }),
+    );
   });
 });
