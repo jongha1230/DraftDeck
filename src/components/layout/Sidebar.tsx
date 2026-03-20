@@ -1,5 +1,5 @@
 import { formatListDate } from "@/lib/date-format";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, hasBrowserSupabaseEnv } from "@/lib/supabase/client";
 import { PreviewUser } from "@/lib/ui-preview";
 import { Post } from "@/types";
 import { User } from "@supabase/supabase-js";
@@ -47,7 +47,10 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isDeletedTrayOpen, setIsDeletedTrayOpen] = useState(false);
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = useMemo(
+    () => (isPreview || !hasBrowserSupabaseEnv() ? null : createClient()),
+    [isPreview],
+  );
   const resolvedUser = isPreview
     ? previewUser
       ? {
@@ -63,7 +66,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       : null;
 
   useEffect(() => {
-    if (isPreview) {
+    if (isPreview || !supabase) {
       return;
     }
 
