@@ -1,6 +1,9 @@
 import CustomButton from "@/components/ui/CustomButton";
 import { formatRecordDate } from "@/lib/date-format";
-import { getRevisionTriggerLabel } from "@/lib/drafts/records";
+import {
+  getRevisionTriggerLabel,
+  getUniqueCheckpointRevisions,
+} from "@/lib/drafts/records";
 import { DraftArtifacts, DraftRevisionTrigger } from "@/types";
 import {
   ChevronLeft,
@@ -62,33 +65,28 @@ export default function AssistantPanel({
   onRestoreRevision,
   onDeleteRevision,
 }: AssistantPanelProps) {
-  const recentRevisions = useMemo(() => {
-    const seen = new Set<number>();
+  const uniqueRevisions = useMemo(
+    () => getUniqueCheckpointRevisions(artifacts.revisions),
+    [artifacts.revisions],
+  );
 
-    return artifacts.revisions
-      .filter((revision) => {
-        if (seen.has(revision.revision_number)) {
-          return false;
-        }
-
-        seen.add(revision.revision_number);
-        return true;
-      })
-      .slice(0, 3);
-  }, [artifacts.revisions]);
+  const recentRevisions = useMemo(
+    () => uniqueRevisions.slice(0, 3),
+    [uniqueRevisions],
+  );
 
   const recentSources = artifacts.sources.slice(0, 2);
 
   const revisionDisplayMap = useMemo(() => {
     const map = new Map<string, number>();
-    const total = recentRevisions.length;
+    const total = artifacts.revisionCount ?? uniqueRevisions.length;
 
-    recentRevisions.forEach((revision, index) => {
+    uniqueRevisions.forEach((revision, index) => {
       map.set(revision.id, total - index);
     });
 
     return map;
-  }, [recentRevisions]);
+  }, [artifacts.revisionCount, uniqueRevisions]);
 
   return (
     <>

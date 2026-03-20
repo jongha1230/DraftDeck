@@ -15,6 +15,8 @@ import {
 } from "@/types";
 import {
   EMPTY_DRAFT_ARTIFACTS,
+  getCheckpointRevisionCount,
+  normalizeDraftArtifacts,
   normalizeAIRunRecord,
   normalizeDraftRevisionRecord,
   normalizeDraftSourceRecord,
@@ -266,17 +268,18 @@ export async function permanentlyDeletePostRecord(postId: string) {
 
 export async function getDraftArtifactsRecord(postId: string): Promise<DraftArtifacts> {
   const { supabase, user } = await getAuthenticatedContext();
-  const [sources, revisions, aiRuns] = await Promise.all([
+  const [sources, revisionResult, aiRuns] = await Promise.all([
     safeSelectSources(supabase, user.id, postId),
     safeSelectRevisions(supabase, user.id, postId),
     safeSelectAIRuns(supabase, user.id, postId),
   ]);
 
-  return {
+  return normalizeDraftArtifacts({
     sources,
-    revisions,
+    revisions: revisionResult.revisions,
     aiRuns,
-  };
+    revisionCount: revisionResult.revisionCount,
+  });
 }
 
 export async function deleteDraftRevisionRecord(revisionId: string) {
@@ -503,9 +506,9 @@ async function safeSelectRevisions(
   userId: string,
   postId: string,
 ) {
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
     .from("draft_revisions")
-    .select("*")
+    .select("*", { count: "exact" })
     .eq("user_id", userId)
     .eq("post_id", postId)
     .order("revision_number", { ascending: false })
@@ -513,15 +516,23 @@ async function safeSelectRevisions(
 
   if (error) {
     if (isOptionalTableError(error)) {
-      return EMPTY_DRAFT_ARTIFACTS.revisions;
+      return {
+        revisions: EMPTY_DRAFT_ARTIFACTS.revisions,
+        revisionCount: EMPTY_DRAFT_ARTIFACTS.revisionCount ?? 0,
+      };
     }
 
     throw new Error(error.message);
   }
 
-  return (data ?? []).map((record) =>
+  const revisions = (data ?? []).map((record) =>
     normalizeDraftRevisionRecord(record as UnknownRecord),
   );
+
+  return {
+    revisions,
+    revisionCount: count ?? getCheckpointRevisionCount(revisions),
+  };
 }
 
 async function safeSelectAIRuns(

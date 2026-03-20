@@ -88,6 +88,7 @@ export interface DraftArtifacts {
   sources: DraftSource[];
   revisions: DraftRevision[];
   aiRuns: AIRun[];
+  revisionCount?: number;
 }
 
 export interface DraftSaveInput {
