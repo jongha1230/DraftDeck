@@ -14,6 +14,7 @@ import {
 import {
   EMPTY_DRAFT_ARTIFACTS,
   buildMarkdownExportFilename,
+  getUniqueCheckpointRevisions,
   shouldCreateAutosaveCheckpoint,
 } from "@/lib/drafts/records";
 import {
@@ -199,6 +200,17 @@ export function useDraftPageController({
       }
 
       const requestSnapshot = latestPost;
+      const resolvedIntent =
+        intent.trigger === DraftRevisionTrigger.AUTOSAVE
+          ? {
+              ...intent,
+              createCheckpoint: shouldCreateClientAutosaveCheckpoint(
+                useDraftStore.getState().artifactsByPostId[postId] ?? EMPTY_DRAFT_ARTIFACTS,
+                requestSnapshot.title,
+                requestSnapshot.content,
+              ),
+            }
+          : intent;
 
       savingPostIdsRef.current.add(postId);
       saveIntentsRef.current.delete(postId);
@@ -219,27 +231,18 @@ export function useDraftPageController({
           };
 
           upsertPost(previewPost);
-          const latestCheckpoint = (
-            useDraftStore.getState().artifactsByPostId[postId]?.revisions ?? []
-          )[0];
           const shouldCreateRevision =
-            intent.trigger !== DraftRevisionTrigger.AUTOSAVE ||
-            !latestCheckpoint ||
-            shouldCreateAutosaveCheckpoint({
-              previousTitle: latestCheckpoint.title,
-              previousContent: latestCheckpoint.content,
-              nextTitle: previewPost.title,
-              nextContent: previewPost.content,
-            });
+            resolvedIntent.trigger !== DraftRevisionTrigger.AUTOSAVE ||
+            resolvedIntent.createCheckpoint !== false;
 
           if (shouldCreateRevision) {
             prependRevision(
               postId,
               createPreviewRevision({
                 post: previewPost,
-                trigger: intent.trigger,
-                aiRunId: intent.aiRunId ?? null,
-                sourceId: intent.sourceId ?? null,
+                trigger: resolvedIntent.trigger,
+                aiRunId: resolvedIntent.aiRunId ?? null,
+                sourceId: resolvedIntent.sourceId ?? null,
               }),
             );
           }
@@ -254,7 +257,7 @@ export function useDraftPageController({
             content: requestSnapshot.content,
             expectedRevision: requestSnapshot.revision_number,
           },
-          intent,
+          resolvedIntent,
         );
 
         if (!result.ok) {
@@ -1015,7 +1018,26 @@ function mergeSaveIntent(
   return {
     ...previous,
     ...next,
+    createCheckpoint:
+      previous.createCheckpoint === true || next.createCheckpoint === true
+        ? true
+        : next.createCheckpoint ?? previous.createCheckpoint,
   };
+}
+
+function shouldCreateClientAutosaveCheckpoint(
+  artifacts: (typeof EMPTY_DRAFT_ARTIFACTS),
+  nextTitle: string,
+  nextContent: string,
+) {
+  const latestCheckpoint = getUniqueCheckpointRevisions(artifacts.revisions)[0];
+
+  return shouldCreateAutosaveCheckpoint({
+    previousTitle: latestCheckpoint?.title ?? "",
+    previousContent: latestCheckpoint?.content ?? "",
+    nextTitle,
+    nextContent,
+  });
 }
 
 function createOptimisticPost(): Post {

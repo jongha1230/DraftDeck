@@ -429,23 +429,30 @@ async function insertDraftRevisionRecord(
   options?: {
     aiRunId?: string | null;
     sourceId?: string | null;
+    createCheckpoint?: boolean;
   },
 ): Promise<DraftRevision | null> {
   const { supabase, user } = await getAuthenticatedContext();
 
   if (trigger === DraftRevisionTrigger.AUTOSAVE) {
-    const latestRevision = await getLatestDraftRevisionRecord(supabase, user.id, post.id);
-
-    if (
-      latestRevision &&
-      !shouldCreateAutosaveCheckpoint({
-        previousTitle: latestRevision.title,
-        previousContent: latestRevision.content,
-        nextTitle: post.title,
-        nextContent: post.content,
-      })
-    ) {
+    if (options?.createCheckpoint === false) {
       return null;
+    }
+
+    if (options?.createCheckpoint !== true) {
+      const latestRevision = await getLatestDraftRevisionRecord(supabase, user.id, post.id);
+
+      if (
+        latestRevision &&
+        !shouldCreateAutosaveCheckpoint({
+        previousTitle: latestRevision.title,
+          previousContent: latestRevision.content,
+          nextTitle: post.title,
+          nextContent: post.content,
+        })
+      ) {
+        return null;
+      }
     }
   }
 

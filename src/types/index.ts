@@ -109,6 +109,7 @@ export interface SaveDraftOptions {
   trigger: DraftRevisionTrigger;
   aiRunId?: string | null;
   sourceId?: string | null;
+  createCheckpoint?: boolean;
 }
 
 export interface SaveDraftSuccessResult {
