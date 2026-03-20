@@ -16,6 +16,7 @@ export const EMPTY_DRAFT_ARTIFACTS: DraftArtifacts = {
   sources: [],
   revisions: [],
   aiRuns: [],
+  revisionCount: 0,
 };
 
 export function normalizePostRecord(record: UnknownRecord): Post {
@@ -151,8 +152,35 @@ function normalizeRevisionTrigger(value: unknown): DraftRevisionTrigger {
   return DraftRevisionTrigger.AUTOSAVE;
 }
 
-const CHECKPOINT_MIN_CHAR_DELTA = 120;
+const CHECKPOINT_MIN_CHAR_DELTA = 80;
 const CHECKPOINT_MIN_CHANGE_RATIO = 0.18;
+const CHECKPOINT_MIN_SMALL_EDIT_DELTA = 24;
+const INITIAL_CHECKPOINT_MIN_CONTENT_LENGTH = 60;
+
+export function getUniqueCheckpointRevisions(revisions: DraftRevision[]) {
+  const seen = new Set<number>();
+
+  return revisions.filter((revision) => {
+    if (seen.has(revision.revision_number)) {
+      return false;
+    }
+
+    seen.add(revision.revision_number);
+    return true;
+  });
+}
+
+export function getCheckpointRevisionCount(revisions: DraftRevision[]) {
+  return getUniqueCheckpointRevisions(revisions).length;
+}
+
+export function normalizeDraftArtifacts(artifacts: DraftArtifacts): DraftArtifacts {
+  return {
+    ...artifacts,
+    revisionCount:
+      artifacts.revisionCount ?? getCheckpointRevisionCount(artifacts.revisions),
+  };
+}
 
 export function shouldCreateAutosaveCheckpoint(input: {
   previousTitle: string;
@@ -168,7 +196,7 @@ export function shouldCreateAutosaveCheckpoint(input: {
   const nextContent = input.nextContent.trim();
 
   if (!previousContent && nextContent) {
-    return true;
+    return nextContent.length >= INITIAL_CHECKPOINT_MIN_CONTENT_LENGTH;
   }
 
   const changedChars = estimateChangedCharacters(previousContent, nextContent);
@@ -176,7 +204,8 @@ export function shouldCreateAutosaveCheckpoint(input: {
 
   return (
     changedChars >= CHECKPOINT_MIN_CHAR_DELTA ||
-    changedChars / baseline >= CHECKPOINT_MIN_CHANGE_RATIO
+    (changedChars >= CHECKPOINT_MIN_SMALL_EDIT_DELTA &&
+      changedChars / baseline >= CHECKPOINT_MIN_CHANGE_RATIO)
   );
 }
 

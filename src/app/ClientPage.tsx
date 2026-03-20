@@ -10,6 +10,7 @@ import PreviewModal from "@/components/editor/PreviewModal";
 import Sidebar from "@/components/layout/Sidebar";
 import ToastViewport from "@/components/ui/ToastViewport";
 import { useDraftPageController } from "@/hooks/useDraftPageController";
+import { getCheckpointRevisionCount } from "@/lib/drafts/records";
 import { PreviewUser } from "@/lib/ui-preview";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { AIActionType, Post } from "@/types";
@@ -80,7 +81,8 @@ export default function ClientPage({
   useUnsavedChanges();
 
   const displayRevisionNumber =
-    activeArtifacts.revisions.length > 0 ? activeArtifacts.revisions.length : 1;
+    activeArtifacts.revisionCount ??
+    (getCheckpointRevisionCount(activeArtifacts.revisions) || 1);
 
   return (
     <div className="app-shell">

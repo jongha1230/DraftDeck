@@ -9,6 +9,10 @@ import {
   DraftSourceKind,
   Post,
 } from "@/types";
+import {
+  getCheckpointRevisionCount,
+  normalizeDraftArtifacts,
+} from "@/lib/drafts/records";
 
 export interface PreviewUser {
   email: string;
@@ -159,6 +163,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
         created_at: new Date(now - 1000 * 60 * 30).toISOString(),
       },
     ],
+    revisionCount: 2,
   },
   "preview-post-2": {
     sources: [],
@@ -177,6 +182,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
       },
     ],
     aiRuns: [],
+    revisionCount: 1,
   },
 };
 
@@ -185,7 +191,12 @@ export function createDefaultPreviewSession(): PreviewSessionData {
     posts: structuredClone(PREVIEW_POSTS),
     deletedPosts: [],
     activePostId: PREVIEW_POSTS[0]?.id ?? null,
-    artifactsByPostId: structuredClone(PREVIEW_ARTIFACTS),
+    artifactsByPostId: Object.fromEntries(
+      Object.entries(structuredClone(PREVIEW_ARTIFACTS)).map(([postId, artifacts]) => [
+        postId,
+        normalizeDraftArtifacts(artifacts),
+      ]),
+    ),
   };
 }
 
@@ -211,7 +222,19 @@ export function readPreviewSession() {
         parsed.posts?.[0]?.id ??
         createDefaultPreviewSession().activePostId,
       artifactsByPostId:
-        parsed.artifactsByPostId ?? createDefaultPreviewSession().artifactsByPostId,
+        parsed.artifactsByPostId
+          ? Object.fromEntries(
+              Object.entries(parsed.artifactsByPostId).map(([postId, artifacts]) => [
+                postId,
+                normalizeDraftArtifacts({
+                  ...artifacts,
+                  revisionCount:
+                    artifacts.revisionCount ??
+                    getCheckpointRevisionCount(artifacts.revisions ?? []),
+                }),
+              ]),
+            )
+          : createDefaultPreviewSession().artifactsByPostId,
     };
   } catch {
     return createDefaultPreviewSession();

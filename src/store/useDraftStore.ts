@@ -1,4 +1,8 @@
 import { AppToast, DraftArtifacts, DraftSource, DraftRevision, AIRun, AIResultState, Post, ToastTone } from "@/types";
+import {
+  getCheckpointRevisionCount,
+  normalizeDraftArtifacts,
+} from "@/lib/drafts/records";
 import { create } from "zustand";
 
 interface DraftState {
@@ -60,6 +64,7 @@ const emptyArtifacts = (): DraftArtifacts => ({
   sources: [],
   revisions: [],
   aiRuns: [],
+  revisionCount: 0,
 });
 
 export const useDraftStore = create<DraftState>((set) => {
@@ -110,20 +115,28 @@ export const useDraftStore = create<DraftState>((set) => {
       deletedPosts = [],
       activePostId,
       artifactsByPostId = {},
-    }) =>
+    }) => {
+      const normalizedArtifacts = Object.fromEntries(
+        Object.entries(artifactsByPostId).map(([postId, artifacts]) => [
+          postId,
+          normalizeDraftArtifacts(artifacts),
+        ]),
+      );
+
       set({
         posts,
         deletedPosts,
         activePostId,
-        artifactsByPostId,
+        artifactsByPostId: normalizedArtifacts,
         loadedArtifactPostIds: Object.fromEntries(
-          Object.keys(artifactsByPostId).map((postId) => [postId, true]),
+          Object.keys(normalizedArtifacts).map((postId) => [postId, true]),
         ),
         isDirty: false,
         isSaving: false,
         isAiLoading: false,
         aiResult: null,
-      }),
+      });
+    },
 
     setPosts: (posts) => set({ posts }),
     prependPost: (post) =>
@@ -222,7 +235,7 @@ export const useDraftStore = create<DraftState>((set) => {
         artifactsByPostId: artifacts
           ? {
               ...state.artifactsByPostId,
-              [post.id]: artifacts,
+              [post.id]: normalizeDraftArtifacts(artifacts),
             }
           : state.artifactsByPostId,
         loadedArtifactPostIds: isArtifactsLoaded
@@ -246,7 +259,7 @@ export const useDraftStore = create<DraftState>((set) => {
       set((state) => ({
         artifactsByPostId: {
           ...state.artifactsByPostId,
-          [postId]: artifacts,
+          [postId]: normalizeDraftArtifacts(artifacts),
         },
         loadedArtifactPostIds: {
           ...state.loadedArtifactPostIds,
@@ -278,38 +291,71 @@ export const useDraftStore = create<DraftState>((set) => {
         },
       })),
     prependRevision: (postId, revision) =>
-      set((state) => ({
-        artifactsByPostId: {
-          ...state.artifactsByPostId,
-          [postId]: {
-            ...(state.artifactsByPostId[postId] ?? emptyArtifacts()),
-            revisions: [
-              revision,
-              ...(state.artifactsByPostId[postId]?.revisions ?? []),
-            ].slice(0, 6),
+      set((state) => {
+        const currentArtifacts = state.artifactsByPostId[postId] ?? emptyArtifacts();
+        const currentRevisionCount =
+          currentArtifacts.revisionCount ??
+          getCheckpointRevisionCount(currentArtifacts.revisions);
+        const hasExistingRevision = currentArtifacts.revisions.some(
+          (item) =>
+            item.id === revision.id ||
+            item.revision_number === revision.revision_number,
+        );
+        const revisions = [
+          revision,
+          ...currentArtifacts.revisions.filter(
+            (item) =>
+              item.id !== revision.id &&
+              item.revision_number !== revision.revision_number,
+          ),
+        ].slice(0, 6);
+
+        return {
+          artifactsByPostId: {
+            ...state.artifactsByPostId,
+            [postId]: {
+              ...currentArtifacts,
+              revisions,
+              revisionCount: hasExistingRevision
+                ? currentRevisionCount
+                : currentRevisionCount + 1,
+            },
           },
-        },
-        loadedArtifactPostIds: {
-          ...state.loadedArtifactPostIds,
-          [postId]: true,
-        },
-      })),
+          loadedArtifactPostIds: {
+            ...state.loadedArtifactPostIds,
+            [postId]: true,
+          },
+        };
+      }),
     removeRevision: (postId, revisionId) =>
-      set((state) => ({
-        artifactsByPostId: {
-          ...state.artifactsByPostId,
-          [postId]: {
-            ...(state.artifactsByPostId[postId] ?? emptyArtifacts()),
-            revisions: (state.artifactsByPostId[postId]?.revisions ?? []).filter(
-              (revision) => revision.id !== revisionId,
-            ),
+      set((state) => {
+        const currentArtifacts = state.artifactsByPostId[postId] ?? emptyArtifacts();
+        const revisions = currentArtifacts.revisions.filter(
+          (revision) => revision.id !== revisionId,
+        );
+        const didRemove = revisions.length !== currentArtifacts.revisions.length;
+        const currentRevisionCount =
+          currentArtifacts.revisionCount ??
+          getCheckpointRevisionCount(currentArtifacts.revisions);
+
+        return {
+          artifactsByPostId: {
+            ...state.artifactsByPostId,
+            [postId]: {
+              ...currentArtifacts,
+              revisions,
+              revisionCount:
+                didRemove && currentRevisionCount > 0
+                  ? currentRevisionCount - 1
+                  : currentRevisionCount,
+            },
           },
-        },
-        loadedArtifactPostIds: {
-          ...state.loadedArtifactPostIds,
-          [postId]: true,
-        },
-      })),
+          loadedArtifactPostIds: {
+            ...state.loadedArtifactPostIds,
+            [postId]: true,
+          },
+        };
+      }),
     prependAIRun: (postId, run) =>
       set((state) => ({
         artifactsByPostId: {
