@@ -25,6 +25,8 @@ export default function SourceImportModal({
 }: SourceImportModalProps) {
   if (!isOpen) return null;
 
+  const fileInputId = "draft-source-file-input";
+
   return (
     <div className="fixed inset-0 z-[75] flex items-end justify-center bg-[color:rgba(15,23,42,0.32)] p-0 md:items-center md:p-4">
       <button
@@ -78,18 +80,24 @@ export default function SourceImportModal({
         </div>
 
         <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="relative">
+          <div>
             <input
+              id={fileInputId}
               type="file"
               accept=".txt,.md"
               onChange={onFileUpload}
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              className="sr-only"
               disabled={isAiLoading}
             />
-            <CustomButton variant="outline" size="sm" className="gap-2">
+            <label
+              htmlFor={fileInputId}
+              className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-[color:var(--app-line)] bg-white px-3.5 py-2 text-xs font-medium tracking-[-0.01em] text-[var(--app-ink)] transition-all duration-200 hover:border-[color:var(--app-line-strong)] hover:bg-[var(--app-surface-muted)] ${
+                isAiLoading ? "pointer-events-none opacity-50" : ""
+              }`}
+            >
               <FileUp size={15} />
               파일 불러오기 (.txt, .md)
-            </CustomButton>
+            </label>
           </div>
 
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
