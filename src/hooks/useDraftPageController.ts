@@ -680,27 +680,15 @@ export function useDraftPageController({
 
       if (action === AIActionType.SOURCE_TO_DRAFT && targetPostId) {
         const nextSourceLabel =
-          sourceLabel.trim() || (sourceKind === DraftSourceKind.FILE ? "업로드한 파일" : "붙여넣은 자료");
+          sourceLabel.trim() ||
+          (sourceKind === DraftSourceKind.FILE ? "업로드한 파일" : "붙여넣은 자료");
 
-        if (isPreview) {
-          const previewSource = createPreviewSource({
-            postId: targetPostId,
-            label: nextSourceLabel,
-            content: inputText,
-            kind: sourceKind,
-          });
-          prependSource(targetPostId, previewSource);
-          recordedSourceId = previewSource.id;
-        } else {
-          const savedSource = await recordDraftSourceAction({
-            postId: targetPostId,
-            label: nextSourceLabel,
-            kind: sourceKind,
-            content: inputText,
-          });
-          prependSource(targetPostId, savedSource);
-          recordedSourceId = savedSource.id;
-        }
+        recordedSourceId = await recordSourceForPost(
+          targetPostId,
+          inputText,
+          nextSourceLabel,
+          sourceKind,
+        );
       }
 
       if (isPreview) {
@@ -778,6 +766,36 @@ export function useDraftPageController({
       setAiLoading(false);
     }
   };
+
+  const recordSourceForPost = useCallback(
+    async (
+      postId: string,
+      inputText: string,
+      nextSourceLabel: string,
+      nextSourceKind: DraftSourceKind,
+    ) => {
+      if (isPreview) {
+        const previewSource = createPreviewSource({
+          postId,
+          label: nextSourceLabel,
+          content: inputText,
+          kind: nextSourceKind,
+        });
+        prependSource(postId, previewSource);
+        return previewSource.id;
+      }
+
+      const savedSource = await recordDraftSourceAction({
+        postId,
+        label: nextSourceLabel,
+        kind: nextSourceKind,
+        content: inputText,
+      });
+      prependSource(postId, savedSource);
+      return savedSource.id;
+    },
+    [isPreview, prependSource],
+  );
 
   const updatePostLocally = useCallback(
     (postId: string, updates: Partial<Post>) => {
@@ -964,6 +982,44 @@ export function useDraftPageController({
     }
   };
 
+  const handleApplySourceToCurrent = async () => {
+    if (!activePostId || !activePost || !sourceInput.trim()) return;
+    if (isPendingCreatePostId(activePostId)) {
+      pushNotification(
+        "문서 생성이 끝난 뒤 다시 시도해 주세요.",
+        "error",
+        "문서 준비 중",
+      );
+      return;
+    }
+
+    try {
+      const nextSourceLabel =
+        sourceLabel.trim() ||
+        (sourceKind === DraftSourceKind.FILE ? "업로드한 파일" : "붙여넣은 자료");
+      const sourceId = await recordSourceForPost(
+        activePostId,
+        sourceInput,
+        nextSourceLabel,
+        sourceKind,
+      );
+
+      updatePostLocally(activePostId, { content: sourceInput });
+      queueSave(activePostId, {
+        trigger: DraftRevisionTrigger.SOURCE_IMPORT,
+        sourceId,
+      });
+      pushNotification("가져온 자료를 현재 문서에 반영했습니다.", "success", "자료 적용");
+      handleCloseImport();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "자료를 현재 문서에 적용하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+      pushNotification(message, "error", "자료 적용 실패");
+    }
+  };
+
   return {
     posts: resolvedPosts,
     deletedPosts: resolvedDeletedPosts,
@@ -981,6 +1037,8 @@ export function useDraftPageController({
     sourceInput,
     sourceLabel,
     sourceKind,
+    canApplySourceToCurrent:
+      Boolean(activePost) && !isPendingCreatePostId(activePostId),
     isSidebarOpen,
     isAssistantOpen,
     isArtifactsLoading,
@@ -1012,6 +1070,7 @@ export function useDraftPageController({
     handleFileUpload,
     handleOpenImport,
     handleCloseImport,
+    handleApplySourceToCurrent,
     handleOpenSourcePreview,
     handleCloseSourcePreview,
     handleCloseAIResult,

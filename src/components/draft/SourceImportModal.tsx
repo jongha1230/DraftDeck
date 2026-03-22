@@ -7,10 +7,12 @@ interface SourceImportModalProps {
   sourceInput: string;
   sourceLabel: string;
   isAiLoading: boolean;
+  canApplyToCurrent: boolean;
   onSourceInputChange: (value: string) => void;
   onClose: () => void;
   onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onGenerate: () => void;
+  onApplyToCurrent: () => void;
 }
 
 export default function SourceImportModal({
@@ -18,25 +20,27 @@ export default function SourceImportModal({
   sourceInput,
   sourceLabel,
   isAiLoading,
+  canApplyToCurrent,
   onSourceInputChange,
   onClose,
   onFileUpload,
   onGenerate,
+  onApplyToCurrent,
 }: SourceImportModalProps) {
-  if (!isOpen) return null;
-
   const fileInputId = "draft-source-file-input";
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[75] flex items-end justify-center bg-[color:rgba(15,23,42,0.32)] p-0 md:items-center md:p-4">
       <button
         type="button"
-        className="absolute inset-0"
+        className="app-fade-in absolute inset-0"
         onClick={onClose}
         aria-label="자료 가져오기 닫기"
       />
 
-      <div className="app-panel relative flex w-full max-w-2xl flex-col rounded-t-[32px] px-5 pb-5 pt-6 md:rounded-[32px] md:px-6 md:pb-6">
+      <div className="app-panel app-sheet-in relative flex w-full max-w-2xl flex-col rounded-t-[32px] px-5 pb-5 pt-6 md:app-dialog-in md:rounded-[32px] md:px-6 md:pb-6">
         <div className="flex items-start justify-between gap-4 border-b border-[color:var(--app-line)] pb-4">
           <div>
             <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--app-muted)]">
@@ -100,16 +104,18 @@ export default function SourceImportModal({
             </label>
           </div>
 
-          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
             <CustomButton
-              variant="ghost"
-              onClick={onClose}
-              disabled={isAiLoading}
+              variant="secondary"
+              onClick={onApplyToCurrent}
+              disabled={isAiLoading || !sourceInput.trim() || !canApplyToCurrent}
             >
-              취소
+              현재 문서에 적용
             </CustomButton>
             <CustomButton
-              onClick={onGenerate}
+              onClick={() => {
+                onGenerate();
+              }}
               disabled={isAiLoading || !sourceInput.trim()}
               loading={isAiLoading}
             >
