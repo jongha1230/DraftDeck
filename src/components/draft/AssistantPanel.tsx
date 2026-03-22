@@ -11,6 +11,7 @@ import {
   FileInput,
   FileText,
   History,
+  MoveRight,
   PanelRightClose,
   Trash2,
 } from "lucide-react";
@@ -23,6 +24,7 @@ interface AssistantPanelProps {
   isArtifactsLoading: boolean;
   onToggle: () => void;
   onOpenImport: () => void;
+  onOpenSourcePreview: (sourceId: string) => void;
   onRestoreRevision: (revisionId: string) => void;
   onDeleteRevision: (revisionId: string) => void;
 }
@@ -62,6 +64,7 @@ export default function AssistantPanel({
   isArtifactsLoading,
   onToggle,
   onOpenImport,
+  onOpenSourcePreview,
   onRestoreRevision,
   onDeleteRevision,
 }: AssistantPanelProps) {
@@ -164,9 +167,11 @@ export default function AssistantPanel({
             ) : (
               <div className="space-y-2">
                 {recentSources.map((source) => (
-                  <div
+                  <button
                     key={source.id}
-                    className="rounded-[18px] border border-[color:var(--app-line)] bg-white px-4 py-3"
+                    type="button"
+                    onClick={() => onOpenSourcePreview(source.id)}
+                    className="w-full rounded-[18px] border border-[color:var(--app-line)] bg-white px-4 py-3 text-left transition hover:border-[color:var(--app-line-strong)] hover:bg-[var(--app-surface-muted)]"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <p className="truncate text-sm font-semibold text-[var(--app-ink)]">
@@ -179,7 +184,11 @@ export default function AssistantPanel({
                     <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--app-muted)]">
                       {source.content}
                     </p>
-                  </div>
+                    <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[var(--app-primary)]">
+                      원본 보기
+                      <MoveRight size={13} />
+                    </span>
+                  </button>
                 ))}
               </div>
             )}

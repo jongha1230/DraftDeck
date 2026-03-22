@@ -4,6 +4,7 @@ import AssistantPanel from "@/components/draft/AssistantPanel";
 import DraftEditorPane from "@/components/draft/DraftEditorPane";
 import DraftHeader from "@/components/draft/DraftHeader";
 import EmptyDraftState from "@/components/draft/EmptyDraftState";
+import SourcePreviewModal from "@/components/draft/SourcePreviewModal";
 import AIResultModal from "@/components/editor/AIResultModal";
 import SourceImportModal from "@/components/draft/SourceImportModal";
 import PreviewModal from "@/components/editor/PreviewModal";
@@ -46,6 +47,7 @@ export default function ClientPage({
     isAssistantOpen,
     isArtifactsLoading,
     isSourceModalOpen,
+    sourcePreview,
     isPreviewOpen,
     previewMode,
     contentScrollRef,
@@ -72,6 +74,8 @@ export default function ClientPage({
     handleFileUpload,
     handleOpenImport,
     handleCloseImport,
+    handleOpenSourcePreview,
+    handleCloseSourcePreview,
     handleCloseAIResult,
     handleRestoreRevision,
     handleDeleteRevision,
@@ -170,6 +174,7 @@ export default function ClientPage({
                       : openAssistantPanel()
                   }
                   onOpenImport={handleOpenImport}
+                  onOpenSourcePreview={handleOpenSourcePreview}
                   onRestoreRevision={handleRestoreRevision}
                   onDeleteRevision={handleDeleteRevision}
                 />
@@ -188,6 +193,11 @@ export default function ClientPage({
         onClose={handleCloseImport}
         onFileUpload={handleFileUpload}
         onGenerate={() => void handleAIAction(AIActionType.SOURCE_TO_DRAFT)}
+      />
+
+      <SourcePreviewModal
+        source={sourcePreview}
+        onClose={handleCloseSourcePreview}
       />
 
       {isPreviewOpen && activePost ? (
