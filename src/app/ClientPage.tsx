@@ -43,6 +43,7 @@ export default function ClientPage({
     selectionText,
     sourceInput,
     sourceLabel,
+    canApplySourceToCurrent,
     isSidebarOpen,
     isAssistantOpen,
     isArtifactsLoading,
@@ -74,6 +75,7 @@ export default function ClientPage({
     handleFileUpload,
     handleOpenImport,
     handleCloseImport,
+    handleApplySourceToCurrent,
     handleOpenSourcePreview,
     handleCloseSourcePreview,
     handleCloseAIResult,
@@ -189,10 +191,12 @@ export default function ClientPage({
         sourceInput={sourceInput}
         sourceLabel={sourceLabel}
         isAiLoading={isAiLoading}
+        canApplyToCurrent={canApplySourceToCurrent}
         onSourceInputChange={setSourceInput}
         onClose={handleCloseImport}
         onFileUpload={handleFileUpload}
         onGenerate={() => void handleAIAction(AIActionType.SOURCE_TO_DRAFT)}
+        onApplyToCurrent={() => void handleApplySourceToCurrent()}
       />
 
       <SourcePreviewModal

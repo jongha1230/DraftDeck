@@ -70,7 +70,7 @@ export default function DraftHeader({
             <CustomButton
               size="sm"
               variant={isAssistantOpen ? "secondary" : "ghost"}
-              className="gap-2 px-2.5 sm:px-3 xl:hidden"
+              className="gap-2 px-2.5 sm:px-3"
               onClick={onAssistantToggle}
               disabled={!hasActivePost && !isAssistantOpen}
               aria-label={isAssistantOpen ? "패널 숨기기" : "패널 열기"}
