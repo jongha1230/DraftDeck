@@ -95,6 +95,7 @@ export function useDraftPageController({
   const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewMode>("preview");
+  const [sourcePreviewId, setSourcePreviewId] = useState<string | null>(null);
   const [sourceInput, setSourceInput] = useState("");
   const [sourceLabel, setSourceLabel] = useState("붙여넣은 자료");
   const [sourceKind, setSourceKind] = useState<DraftSourceKind>(
@@ -158,6 +159,14 @@ export function useDraftPageController({
   const activeArtifacts = resolvedActivePostId
     ? resolvedArtifactsByPostId[resolvedActivePostId] ?? EMPTY_DRAFT_ARTIFACTS
     : EMPTY_DRAFT_ARTIFACTS;
+  const sourcePreview =
+    activeArtifacts.sources.find((source) => source.id === sourcePreviewId) ?? null;
+
+  useEffect(() => {
+    if (sourcePreviewId && !sourcePreview) {
+      setSourcePreviewId(null);
+    }
+  }, [sourcePreview, sourcePreviewId]);
 
   const isPendingCreatePostId = useCallback((postId: string | null | undefined) => {
     if (!postId) return false;
@@ -890,6 +899,15 @@ export function useDraftPageController({
     setSourceKind(DraftSourceKind.PASTE);
   };
 
+  const handleOpenSourcePreview = (sourceId: string) => {
+    setSourcePreviewId(sourceId);
+    openAssistantPanel();
+  };
+
+  const handleCloseSourcePreview = () => {
+    setSourcePreviewId(null);
+  };
+
   const handleCloseAIResult = () => {
     resetAiState();
   };
@@ -967,6 +985,7 @@ export function useDraftPageController({
     isAssistantOpen,
     isArtifactsLoading,
     isSourceModalOpen,
+    sourcePreview,
     isPreviewOpen,
     previewMode,
     contentScrollRef,
@@ -993,6 +1012,8 @@ export function useDraftPageController({
     handleFileUpload,
     handleOpenImport,
     handleCloseImport,
+    handleOpenSourcePreview,
+    handleCloseSourcePreview,
     handleCloseAIResult,
     handleRestoreRevision,
     handleDeleteRevision,
