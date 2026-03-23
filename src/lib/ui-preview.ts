@@ -17,6 +17,10 @@ import {
 export interface PreviewUser {
   email: string;
   avatarUrl?: string;
+  badgeLabel?: string;
+  studioLabel?: string;
+  helperText?: string;
+  showLoginCta?: boolean;
 }
 
 export interface PreviewSessionData {
@@ -26,9 +30,14 @@ export interface PreviewSessionData {
   artifactsByPostId: Record<string, DraftArtifacts>;
 }
 
+export type PreviewSessionVariant = "ui-preview" | "guest-demo";
+
 export const UI_PREVIEW_QUERY_KEY = "draftdeck-preview";
-const PREVIEW_STORAGE_KEY = "draftdeck-preview-session";
-const PREVIEW_USER_ID = "preview-user";
+const PREVIEW_STORAGE_KEY: Record<PreviewSessionVariant, string> = {
+  "ui-preview": "draftdeck-preview-session",
+  "guest-demo": "draftdeck-guest-demo-session",
+};
+const LOCAL_SESSION_USER_ID = "local-session-user";
 
 const isPreviewEnvEnabled = () =>
   process.env.NEXT_PUBLIC_DRAFTDECK_UI_PREVIEW === "1";
@@ -56,6 +65,17 @@ export function isServerUiPreviewEnabled(value?: string | string[]) {
 
 export const PREVIEW_USER: PreviewUser = {
   email: "preview@draftdeck.local",
+  badgeLabel: "Preview",
+  studioLabel: "Local preview session",
+};
+
+export const GUEST_DEMO_USER: PreviewUser = {
+  email: "guest-demo@draftdeck.local",
+  badgeLabel: "Guest Demo",
+  studioLabel: "Local demo session",
+  helperText:
+    "게스트 데모는 브라우저에만 저장되고 AI 결과는 예시 preview로 동작합니다.",
+  showLoginCta: true,
 };
 
 const now = Date.now();
@@ -63,7 +83,7 @@ const now = Date.now();
 export const PREVIEW_POSTS: Post[] = [
   {
     id: "preview-post-1",
-    user_id: PREVIEW_USER_ID,
+    user_id: LOCAL_SESSION_USER_ID,
     title: "기술 설계 초안",
     content: `# 서비스 경계 다시 정리하기
 
@@ -85,7 +105,7 @@ export const PREVIEW_POSTS: Post[] = [
   },
   {
     id: "preview-post-2",
-    user_id: PREVIEW_USER_ID,
+    user_id: LOCAL_SESSION_USER_ID,
     title: "릴리즈 노트 초안",
     content: `# 3월 릴리즈 노트
 
@@ -111,7 +131,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
       {
         id: "preview-source-1",
         post_id: "preview-post-1",
-        user_id: PREVIEW_USER_ID,
+        user_id: LOCAL_SESSION_USER_ID,
         kind: DraftSourceKind.PASTE,
         label: "서비스 경계 메모",
         content:
@@ -124,7 +144,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
       {
         id: "preview-revision-3",
         post_id: "preview-post-1",
-        user_id: PREVIEW_USER_ID,
+        user_id: LOCAL_SESSION_USER_ID,
         revision_number: 3,
         title: "기술 설계 초안",
         content: PREVIEW_POSTS[0].content,
@@ -136,7 +156,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
       {
         id: "preview-revision-2",
         post_id: "preview-post-1",
-        user_id: PREVIEW_USER_ID,
+        user_id: LOCAL_SESSION_USER_ID,
         revision_number: 2,
         title: "기술 설계 초안",
         content: "# 서비스 경계 다시 정리하기\n\n기존 구조를 기록했다.",
@@ -150,7 +170,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
       {
         id: "preview-airun-1",
         post_id: "preview-post-1",
-        user_id: PREVIEW_USER_ID,
+        user_id: LOCAL_SESSION_USER_ID,
         action: AIActionType.DEVELOPER_REWRITE,
         status: AIRunStatus.SUCCESS,
         input_excerpt: "현재 DraftDeck은 상태와 서버 로직이 한 훅에 뭉쳐 있어서...",
@@ -171,7 +191,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
       {
         id: "preview-revision-4",
         post_id: "preview-post-2",
-        user_id: PREVIEW_USER_ID,
+        user_id: LOCAL_SESSION_USER_ID,
         revision_number: 2,
         title: "릴리즈 노트 초안",
         content: PREVIEW_POSTS[1].content,
@@ -186,13 +206,80 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
   },
 };
 
-export function createDefaultPreviewSession(): PreviewSessionData {
+const GUEST_DEMO_POSTS: Post[] = [
+  {
+    id: "guest-demo-post-1",
+    user_id: LOCAL_SESSION_USER_ID,
+    title: "게스트 데모 초안",
+    content: `# 게스트 데모 초안
+
+오른쪽 도우미 패널에서 자료 가져오기를 눌러 메모나 Markdown을 붙여 넣으세요.
+
+## 추천 흐름
+
+1. 자료 가져오기
+2. 초안 생성 실행
+3. Apply로 현재 문서에 반영
+4. 오른쪽에서 revision 기록 확인
+`,
+    is_published: false,
+    revision_number: 1,
+    deleted_at: null,
+    created_at: new Date(now - 1000 * 60 * 45).toISOString(),
+    updated_at: new Date(now - 1000 * 60 * 15).toISOString(),
+  },
+];
+
+const GUEST_DEMO_ARTIFACTS: Record<string, DraftArtifacts> = {
+  "guest-demo-post-1": {
+    sources: [],
+    revisions: [
+      {
+        id: "guest-demo-revision-1",
+        post_id: "guest-demo-post-1",
+        user_id: LOCAL_SESSION_USER_ID,
+        revision_number: 1,
+        title: GUEST_DEMO_POSTS[0].title,
+        content: GUEST_DEMO_POSTS[0].content,
+        trigger: DraftRevisionTrigger.CREATE,
+        ai_run_id: null,
+        source_id: null,
+        created_at: new Date(now - 1000 * 60 * 15).toISOString(),
+      },
+    ],
+    aiRuns: [],
+    revisionCount: 1,
+  },
+};
+
+const PREVIEW_SESSION_SEEDS: Record<
+  PreviewSessionVariant,
+  {
+    posts: Post[];
+    artifactsByPostId: Record<string, DraftArtifacts>;
+  }
+> = {
+  "ui-preview": {
+    posts: PREVIEW_POSTS,
+    artifactsByPostId: PREVIEW_ARTIFACTS,
+  },
+  "guest-demo": {
+    posts: GUEST_DEMO_POSTS,
+    artifactsByPostId: GUEST_DEMO_ARTIFACTS,
+  },
+};
+
+export function createDefaultPreviewSession(
+  variant: PreviewSessionVariant = "ui-preview",
+): PreviewSessionData {
+  const seed = PREVIEW_SESSION_SEEDS[variant];
+
   return {
-    posts: structuredClone(PREVIEW_POSTS),
+    posts: structuredClone(seed.posts),
     deletedPosts: [],
-    activePostId: PREVIEW_POSTS[0]?.id ?? null,
+    activePostId: seed.posts[0]?.id ?? null,
     artifactsByPostId: Object.fromEntries(
-      Object.entries(structuredClone(PREVIEW_ARTIFACTS)).map(([postId, artifacts]) => [
+      Object.entries(structuredClone(seed.artifactsByPostId)).map(([postId, artifacts]) => [
         postId,
         normalizeDraftArtifacts(artifacts),
       ]),
@@ -200,27 +287,31 @@ export function createDefaultPreviewSession(): PreviewSessionData {
   };
 }
 
-export function readPreviewSession() {
+export function readPreviewSession(
+  variant: PreviewSessionVariant = "ui-preview",
+) {
+  const fallbackSession = createDefaultPreviewSession(variant);
+
   if (typeof window === "undefined") {
-    return createDefaultPreviewSession();
+    return fallbackSession;
   }
 
-  const raw = window.localStorage.getItem(PREVIEW_STORAGE_KEY);
+  const raw = window.localStorage.getItem(PREVIEW_STORAGE_KEY[variant]);
 
   if (!raw) {
-    return createDefaultPreviewSession();
+    return fallbackSession;
   }
 
   try {
     const parsed = JSON.parse(raw) as PreviewSessionData;
 
     return {
-      posts: parsed.posts?.length ? parsed.posts : createDefaultPreviewSession().posts,
-      deletedPosts: parsed.deletedPosts ?? createDefaultPreviewSession().deletedPosts,
+      posts: parsed.posts?.length ? parsed.posts : fallbackSession.posts,
+      deletedPosts: parsed.deletedPosts ?? fallbackSession.deletedPosts,
       activePostId:
         parsed.activePostId ??
         parsed.posts?.[0]?.id ??
-        createDefaultPreviewSession().activePostId,
+        fallbackSession.activePostId,
       artifactsByPostId:
         parsed.artifactsByPostId
           ? Object.fromEntries(
@@ -232,21 +323,24 @@ export function readPreviewSession() {
                     artifacts.revisionCount ??
                     getCheckpointRevisionCount(artifacts.revisions ?? []),
                 }),
-              ]),
+                ]),
             )
-          : createDefaultPreviewSession().artifactsByPostId,
+          : fallbackSession.artifactsByPostId,
     };
   } catch {
-    return createDefaultPreviewSession();
+    return fallbackSession;
   }
 }
 
-export function writePreviewSession(data: PreviewSessionData) {
+export function writePreviewSession(
+  data: PreviewSessionData,
+  variant: PreviewSessionVariant = "ui-preview",
+) {
   if (typeof window === "undefined") {
     return;
   }
 
-  window.localStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(data));
+  window.localStorage.setItem(PREVIEW_STORAGE_KEY[variant], JSON.stringify(data));
 }
 
 export function createPreviewPost(): Post {
@@ -254,7 +348,7 @@ export function createPreviewPost(): Post {
 
   return {
     id: crypto.randomUUID(),
-    user_id: PREVIEW_USER_ID,
+    user_id: LOCAL_SESSION_USER_ID,
     title: "새 문서",
     content: "",
     is_published: false,
@@ -274,7 +368,7 @@ export function createPreviewSource(input: {
   return {
     id: crypto.randomUUID(),
     post_id: input.postId,
-    user_id: PREVIEW_USER_ID,
+    user_id: LOCAL_SESSION_USER_ID,
     kind: input.kind,
     label: input.label,
     content: input.content,
@@ -296,7 +390,7 @@ export function createPreviewAIRun(input: {
   return {
     id: crypto.randomUUID(),
     post_id: input.postId ?? null,
-    user_id: PREVIEW_USER_ID,
+    user_id: LOCAL_SESSION_USER_ID,
     action: input.action,
     status: input.status ?? AIRunStatus.SUCCESS,
     input_excerpt: input.text.trim().slice(0, 180),
@@ -317,7 +411,7 @@ export function createPreviewRevision(input: {
   return {
     id: crypto.randomUUID(),
     post_id: input.post.id,
-    user_id: PREVIEW_USER_ID,
+    user_id: LOCAL_SESSION_USER_ID,
     revision_number: input.post.revision_number,
     title: input.post.title,
     content: input.post.content,

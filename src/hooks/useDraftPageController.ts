@@ -24,6 +24,7 @@ import {
   createPreviewPost,
   createPreviewRevision,
   createPreviewSource,
+  type PreviewSessionVariant,
   readPreviewSession,
   writePreviewSession,
 } from "@/lib/ui-preview";
@@ -49,6 +50,7 @@ interface UseDraftPageControllerParams {
   initialPosts: Post[];
   initialDeletedPosts?: Post[];
   isPreview?: boolean;
+  previewSessionVariant?: PreviewSessionVariant;
 }
 
 const SAVE_DEBOUNCE_MS = 900;
@@ -57,6 +59,7 @@ export function useDraftPageController({
   initialPosts,
   initialDeletedPosts = [],
   isPreview = false,
+  previewSessionVariant = "ui-preview",
 }: UseDraftPageControllerParams) {
   const {
     posts,
@@ -130,14 +133,14 @@ export function useDraftPageController({
   const fallbackState = useMemo(
     () =>
       isPreview
-        ? createDefaultPreviewSession()
+        ? createDefaultPreviewSession(previewSessionVariant)
         : {
             posts: initialPosts,
             deletedPosts: initialDeletedPosts,
             activePostId: initialPosts[0]?.id ?? null,
             artifactsByPostId: {},
           },
-    [initialDeletedPosts, initialPosts, isPreview],
+    [initialDeletedPosts, initialPosts, isPreview, previewSessionVariant],
   );
 
   const resolvedPosts = hasInitializedStore ? posts : fallbackState.posts;
@@ -353,7 +356,7 @@ export function useDraftPageController({
     }
 
     const sessionState = isPreview
-      ? readPreviewSession()
+      ? readPreviewSession(previewSessionVariant)
       : {
           posts: initialPosts,
           deletedPosts: initialDeletedPosts,
@@ -364,7 +367,13 @@ export function useDraftPageController({
     hydrateSession(sessionState);
     hasHydratedInitialState.current = true;
     setHasInitializedStore(true);
-  }, [hydrateSession, initialDeletedPosts, initialPosts, isPreview]);
+  }, [
+    hydrateSession,
+    initialDeletedPosts,
+    initialPosts,
+    isPreview,
+    previewSessionVariant,
+  ]);
 
   const loadArtifacts = useCallback(
     async (postId: string) => {
@@ -404,7 +413,7 @@ export function useDraftPageController({
       deletedPosts,
       activePostId,
       artifactsByPostId,
-    });
+    }, previewSessionVariant);
   }, [
     activePostId,
     artifactsByPostId,
@@ -412,6 +421,7 @@ export function useDraftPageController({
     hasInitializedStore,
     isPreview,
     posts,
+    previewSessionVariant,
   ]);
 
   useEffect(() => {

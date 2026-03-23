@@ -53,6 +53,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     () => (isPreview || !hasBrowserSupabaseEnv() ? null : createClient()),
     [isPreview],
   );
+  const previewBadgeLabel = isPreview ? previewUser?.badgeLabel : undefined;
+  const previewStudioLabel = isPreview ? previewUser?.studioLabel : undefined;
+  const previewHelperText = isPreview ? previewUser?.helperText : undefined;
+  const showPreviewLoginCta = Boolean(isPreview && previewUser?.showLoginCta);
   const resolvedUser = isPreview
     ? previewUser
       ? {
@@ -315,6 +319,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 email={resolvedUser.email}
                 isPreview={isPreview}
                 avatarUrl={resolvedUser.avatarUrl}
+                previewBadgeLabel={previewBadgeLabel}
+                subtitle={previewStudioLabel}
               />
             ) : (
               <div className="rounded-[20px] border border-[color:var(--app-line)] bg-[var(--app-surface-muted)] p-4">
@@ -326,6 +332,19 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               </div>
             )}
+
+            {previewHelperText ? (
+              <div className="mt-3 rounded-[20px] border border-[color:var(--app-line)] bg-[var(--app-surface-muted)] p-4">
+                <p className="text-sm leading-6 text-[var(--app-muted)]">
+                  {previewHelperText}
+                </p>
+                {showPreviewLoginCta ? (
+                  <div className="mt-3">
+                    <LoginButton />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
       </aside>
