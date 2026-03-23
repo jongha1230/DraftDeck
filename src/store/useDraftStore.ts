@@ -11,6 +11,7 @@ interface DraftState {
   activePostId: string | null;
   artifactsByPostId: Record<string, DraftArtifacts>;
   loadedArtifactPostIds: Record<string, boolean>;
+  hasHydratedSession: boolean;
   isSaving: boolean;
   isDirty: boolean;
   isAiLoading: boolean;
@@ -104,6 +105,7 @@ export const useDraftStore = create<DraftState>((set) => {
     activePostId: null,
     artifactsByPostId: {},
     loadedArtifactPostIds: {},
+    hasHydratedSession: false,
     isSaving: false,
     isDirty: false,
     isAiLoading: false,
@@ -131,6 +133,7 @@ export const useDraftStore = create<DraftState>((set) => {
         loadedArtifactPostIds: Object.fromEntries(
           Object.keys(normalizedArtifacts).map((postId) => [postId, true]),
         ),
+        hasHydratedSession: true,
         isDirty: false,
         isSaving: false,
         isAiLoading: false,
