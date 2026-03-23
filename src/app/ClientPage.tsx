@@ -12,7 +12,10 @@ import Sidebar from "@/components/layout/Sidebar";
 import ToastViewport from "@/components/ui/ToastViewport";
 import { useDraftPageController } from "@/hooks/useDraftPageController";
 import { getCheckpointRevisionCount } from "@/lib/drafts/records";
-import { PreviewUser } from "@/lib/ui-preview";
+import {
+  type PreviewSessionVariant,
+  type PreviewUser,
+} from "@/lib/ui-preview";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { AIActionType, Post } from "@/types";
 
@@ -21,6 +24,7 @@ interface ClientPageProps {
   initialDeletedPosts?: Post[];
   isPreview?: boolean;
   previewUser?: PreviewUser;
+  previewSessionVariant?: PreviewSessionVariant;
 }
 
 export default function ClientPage({
@@ -28,6 +32,7 @@ export default function ClientPage({
   initialDeletedPosts = [],
   isPreview = false,
   previewUser,
+  previewSessionVariant = "ui-preview",
 }: ClientPageProps) {
   const {
     posts,
@@ -82,7 +87,12 @@ export default function ClientPage({
     handleRestoreRevision,
     handleDeleteRevision,
     handleExportMarkdown,
-  } = useDraftPageController({ initialPosts, initialDeletedPosts, isPreview });
+  } = useDraftPageController({
+    initialPosts,
+    initialDeletedPosts,
+    isPreview,
+    previewSessionVariant,
+  });
 
   useUnsavedChanges();
 

@@ -9,12 +9,16 @@ interface UserProfileProps {
   email: string;
   avatarUrl?: string;
   isPreview?: boolean;
+  previewBadgeLabel?: string;
+  subtitle?: string;
 }
 
 export default function UserProfile({
   email,
   avatarUrl,
   isPreview = false,
+  previewBadgeLabel = "Preview",
+  subtitle,
 }: UserProfileProps) {
   const [isPending, startTransition] = useTransition();
 
@@ -54,14 +58,14 @@ export default function UserProfile({
               {email}
             </p>
             <p className="mt-0.5 text-xs text-[var(--app-muted)]">
-              Personal Studio
+              {subtitle ?? (isPreview ? "Local preview session" : "Personal Studio")}
             </p>
           </div>
         </div>
 
         {isPreview ? (
           <span className="rounded-full border border-[color:var(--app-line)] bg-white px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-[var(--app-muted)]">
-            Preview
+            {previewBadgeLabel}
           </span>
         ) : (
           <form onSubmit={handleLogout}>

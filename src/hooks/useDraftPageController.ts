@@ -20,6 +20,7 @@ import {
   createPreviewPost,
   createPreviewRevision,
   createPreviewSource,
+  type PreviewSessionVariant,
 } from "@/lib/ui-preview";
 import { useAutosaveQueue } from "@/hooks/useAutosaveQueue";
 import { usePreviewSession } from "@/hooks/usePreviewSession";
@@ -44,12 +45,14 @@ interface UseDraftPageControllerParams {
   initialPosts: Post[];
   initialDeletedPosts?: Post[];
   isPreview?: boolean;
+  previewSessionVariant?: PreviewSessionVariant;
 }
 
 export function useDraftPageController({
   initialPosts,
   initialDeletedPosts = [],
   isPreview = false,
+  previewSessionVariant = "ui-preview",
 }: UseDraftPageControllerParams) {
   const {
     posts,
@@ -128,6 +131,7 @@ export function useDraftPageController({
     artifactsByPostId,
     hasHydratedSession,
     hydrateSession,
+    previewSessionVariant,
   });
 
   const activePost = useMemo(

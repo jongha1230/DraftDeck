@@ -2,6 +2,7 @@
 
 import {
   createDefaultPreviewSession,
+  type PreviewSessionVariant,
   readPreviewSession,
   writePreviewSession,
 } from "@/lib/ui-preview";
@@ -17,6 +18,7 @@ interface UsePreviewSessionParams {
   activePostId: string | null;
   artifactsByPostId: Record<string, DraftArtifacts>;
   hasHydratedSession: boolean;
+  previewSessionVariant?: PreviewSessionVariant;
   hydrateSession: (input: {
     posts: Post[];
     deletedPosts?: Post[];
@@ -34,19 +36,20 @@ export function usePreviewSession({
   activePostId,
   artifactsByPostId,
   hasHydratedSession,
+  previewSessionVariant = "ui-preview",
   hydrateSession,
 }: UsePreviewSessionParams) {
   const fallbackState = useMemo(
     () =>
       isPreview
-        ? createDefaultPreviewSession()
+        ? createDefaultPreviewSession(previewSessionVariant)
         : {
             posts: initialPosts,
             deletedPosts: initialDeletedPosts,
             activePostId: initialPosts[0]?.id ?? null,
             artifactsByPostId: {},
           },
-    [initialDeletedPosts, initialPosts, isPreview],
+    [initialDeletedPosts, initialPosts, isPreview, previewSessionVariant],
   );
 
   useEffect(() => {
@@ -55,7 +58,7 @@ export function usePreviewSession({
     }
 
     const sessionState = isPreview
-      ? readPreviewSession()
+      ? readPreviewSession(previewSessionVariant)
       : {
           posts: initialPosts,
           deletedPosts: initialDeletedPosts,
@@ -70,6 +73,7 @@ export function usePreviewSession({
     initialDeletedPosts,
     initialPosts,
     isPreview,
+    previewSessionVariant,
   ]);
 
   useEffect(() => {
@@ -82,7 +86,7 @@ export function usePreviewSession({
       deletedPosts,
       activePostId,
       artifactsByPostId,
-    });
+    }, previewSessionVariant);
   }, [
     activePostId,
     artifactsByPostId,
@@ -90,6 +94,7 @@ export function usePreviewSession({
     hasHydratedSession,
     isPreview,
     posts,
+    previewSessionVariant,
   ]);
 
   return {

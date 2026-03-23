@@ -3,6 +3,7 @@ import { AIActionType } from "@/types";
 import {
   createDefaultPreviewSession,
   createPreviewAIResult,
+  GUEST_DEMO_USER,
   isServerUiPreviewEnabled,
 } from "./ui-preview";
 
@@ -15,6 +16,20 @@ describe("ui preview helpers", () => {
     expect(
       session.artifactsByPostId[session.posts[0].id]?.revisions.length,
     ).toBeGreaterThan(0);
+  });
+
+  it("ships a guest demo starter session with a clean import flow", () => {
+    const session = createDefaultPreviewSession("guest-demo");
+
+    expect(session.posts).toHaveLength(1);
+    expect(session.activePostId).toBe(session.posts[0]?.id ?? null);
+    expect(
+      session.artifactsByPostId[session.posts[0].id]?.sources.length ?? 0,
+    ).toBe(0);
+    expect(
+      session.artifactsByPostId[session.posts[0].id]?.revisions.length ?? 0,
+    ).toBe(1);
+    expect(GUEST_DEMO_USER.badgeLabel).toBe("Guest Demo");
   });
 
   it("creates a structured preview draft result", () => {
