@@ -1,5 +1,6 @@
+import Link from "next/link";
 import LoginButton from "@/components/auth/LoginButton";
-import { CheckCircle2, FileText } from "lucide-react";
+import { CheckCircle2, FileText, PlayCircle } from "lucide-react";
 
 const POINTS = [
   "붙여넣은 자료와 파일을 초안 시작점으로 남길 수 있습니다.",
@@ -83,6 +84,21 @@ export default function LoginPage() {
               <div className="pt-2">
                 <LoginButton />
               </div>
+
+              <div className="pt-1">
+                <Link
+                  href="/demo"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[color:var(--app-line)] bg-white px-5 py-2.5 text-sm font-medium tracking-[-0.01em] text-[var(--app-ink)] transition-all duration-200 hover:border-[color:var(--app-line-strong)] hover:bg-[var(--app-surface-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+                >
+                  <PlayCircle size={16} />
+                  게스트로 1회 체험
+                </Link>
+              </div>
+
+              <p className="text-xs leading-6 text-[var(--app-muted)]">
+                게스트 데모는 브라우저에만 저장되고 AI 결과는 예시 preview로
+                동작합니다.
+              </p>
             </div>
           </section>
         </div>
