@@ -11,6 +11,14 @@ const browser = await chromium.launch({
   headless: true,
 });
 
+async function resetPreviewSession(page) {
+  await page.goto(`${BASE_URL}/?draftdeck-preview=1`, { waitUntil: "networkidle" });
+  await page.evaluate(() => {
+    window.localStorage.removeItem("draftdeck-preview-session");
+  });
+  await page.goto(`${BASE_URL}/?draftdeck-preview=1`, { waitUntil: "networkidle" });
+}
+
 const desktop = await browser.newContext({
   viewport: { width: 1440, height: 960 },
   locale: "ko-KR",
@@ -24,12 +32,20 @@ await page.screenshot({
   fullPage: true,
 });
 
-await page.goto(`${BASE_URL}/?draftdeck-preview=1`, { waitUntil: "networkidle" });
+await resetPreviewSession(page);
 await page.getByRole("textbox", { name: "" }).first().waitFor();
 await page.screenshot({
   path: path.join(assetDir, "workspace.png"),
   fullPage: true,
 });
+
+await page.getByRole("button", { name: /원본 보기/ }).first().click();
+await page.getByRole("heading", { name: "서비스 경계 메모" }).waitFor();
+await page.screenshot({
+  path: path.join(assetDir, "source-preview.png"),
+  fullPage: true,
+});
+await page.locator('button[aria-label="닫기"]').click();
 
 await page.getByRole("button", { name: "자료 가져오기" }).click();
 await page.getByPlaceholder("기존 메모나 자료를 붙여넣으세요. 예: 글 목적, 핵심 논점, 섹션 순서, 인용 메모").fill(
@@ -39,8 +55,17 @@ await page.screenshot({
   path: path.join(assetDir, "source-import.png"),
   fullPage: true,
 });
+await page.locator('button[aria-label="닫기"]').click();
 
-await page.getByRole("button", { name: "초안 생성" }).click();
+await page.getByPlaceholder("마크다운으로 자유롭게 작성하세요... (수식 지원: $E=mc^2$)").evaluate((element) => {
+  const textarea = element;
+  textarea.focus();
+  textarea.setSelectionRange(0, Math.min(120, textarea.value.length));
+  textarea.dispatchEvent(new Event("select", { bubbles: true }));
+  textarea.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Shift" }));
+});
+await page.waitForTimeout(250);
+await page.getByRole("button", { name: "요약하기" }).click();
 await page.getByText("AI 제안", { exact: false }).waitFor();
 await page.screenshot({
   path: path.join(assetDir, "ai-result.png"),
@@ -63,9 +88,7 @@ const tablet = await browser.newContext({
   colorScheme: "light",
 });
 const tabletPage = await tablet.newPage();
-await tabletPage.goto(`${BASE_URL}/?draftdeck-preview=1`, {
-  waitUntil: "networkidle",
-});
+await resetPreviewSession(tabletPage);
 await tabletPage.screenshot({
   path: path.join(assetDir, "workspace-tablet.png"),
   fullPage: true,
@@ -77,9 +100,7 @@ const mobile = await browser.newContext({
   colorScheme: "light",
 });
 const mobilePage = await mobile.newPage();
-await mobilePage.goto(`${BASE_URL}/?draftdeck-preview=1`, {
-  waitUntil: "networkidle",
-});
+await resetPreviewSession(mobilePage);
 await mobilePage.screenshot({
   path: path.join(assetDir, "workspace-mobile.png"),
   fullPage: true,
