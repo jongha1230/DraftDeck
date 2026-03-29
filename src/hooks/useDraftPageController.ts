@@ -91,6 +91,12 @@ export function useDraftPageController({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [isArtifactsLoading, setIsArtifactsLoading] = useState(false);
+  const [isPreviewAiGateOpen, setIsPreviewAiGateOpen] = useState(false);
+  const [hasPreviewAiConsent, setHasPreviewAiConsent] = useState(false);
+  const [pendingPreviewAiAction, setPendingPreviewAiAction] = useState<{
+    action: AIActionType;
+    selection?: string;
+  } | null>(null);
 
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -222,7 +228,7 @@ export function useDraftPageController({
 
   const handlePreviewClose = () => setIsPreviewOpen(false);
 
-  const handleAIAction = async (action: AIActionType, selection?: string) => {
+  const runAIActionFlow = async (action: AIActionType, selection?: string) => {
     if (isAiLoading) return;
 
     let targetPostId = activePost?.id ?? null;
@@ -338,6 +344,33 @@ export function useDraftPageController({
     } finally {
       setAiLoading(false);
     }
+  };
+
+  const handleAIAction = async (action: AIActionType, selection?: string) => {
+    if (isPreview && !hasPreviewAiConsent) {
+      setPendingPreviewAiAction({ action, selection });
+      setIsPreviewAiGateOpen(true);
+      return;
+    }
+
+    await runAIActionFlow(action, selection);
+  };
+
+  const handleClosePreviewAiGate = () => {
+    setPendingPreviewAiAction(null);
+    setIsPreviewAiGateOpen(false);
+  };
+
+  const handleContinuePreviewAi = async () => {
+    const pendingAction = pendingPreviewAiAction;
+    if (!pendingAction) {
+      return;
+    }
+
+    setHasPreviewAiConsent(true);
+    setPendingPreviewAiAction(null);
+    setIsPreviewAiGateOpen(false);
+    await runAIActionFlow(pendingAction.action, pendingAction.selection);
   };
 
   const recordSourceForPost = useCallback(
@@ -616,6 +649,8 @@ export function useDraftPageController({
     isAssistantOpen,
     isArtifactsLoading,
     isSourceModalOpen,
+    isPreviewAiGateOpen,
+    pendingPreviewAiAction: pendingPreviewAiAction?.action ?? null,
     sourcePreview,
     isPreviewOpen,
     previewMode,
@@ -643,6 +678,8 @@ export function useDraftPageController({
     handleFileUpload,
     handleOpenImport,
     handleCloseImport,
+    handleClosePreviewAiGate,
+    handleContinuePreviewAi,
     handleApplySourceToCurrent,
     handleOpenSourcePreview,
     handleCloseSourcePreview,

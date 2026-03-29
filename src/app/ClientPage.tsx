@@ -10,6 +10,7 @@ import SourceImportModal from "@/components/draft/SourceImportModal";
 import PreviewModal from "@/components/editor/PreviewModal";
 import Sidebar from "@/components/layout/Sidebar";
 import ToastViewport from "@/components/ui/ToastViewport";
+import PreviewAiGateModal from "@/components/auth/PreviewAiGateModal";
 import { useDraftPageController } from "@/hooks/useDraftPageController";
 import { getCheckpointRevisionCount } from "@/lib/drafts/records";
 import {
@@ -53,6 +54,8 @@ export default function ClientPage({
     isAssistantOpen,
     isArtifactsLoading,
     isSourceModalOpen,
+    isPreviewAiGateOpen,
+    pendingPreviewAiAction,
     sourcePreview,
     isPreviewOpen,
     previewMode,
@@ -80,6 +83,8 @@ export default function ClientPage({
     handleFileUpload,
     handleOpenImport,
     handleCloseImport,
+    handleClosePreviewAiGate,
+    handleContinuePreviewAi,
     handleApplySourceToCurrent,
     handleOpenSourcePreview,
     handleCloseSourcePreview,
@@ -207,6 +212,13 @@ export default function ClientPage({
         onFileUpload={handleFileUpload}
         onGenerate={() => void handleAIAction(AIActionType.SOURCE_TO_DRAFT)}
         onApplyToCurrent={() => void handleApplySourceToCurrent()}
+      />
+
+      <PreviewAiGateModal
+        isOpen={isPreviewAiGateOpen}
+        action={pendingPreviewAiAction}
+        onClose={handleClosePreviewAiGate}
+        onContinuePreview={() => void handleContinuePreviewAi()}
       />
 
       <SourcePreviewModal

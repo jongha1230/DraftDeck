@@ -78,7 +78,7 @@ export const GUEST_DEMO_USER: PreviewUser = {
   showLoginCta: true,
 };
 
-const now = Date.now();
+const PREVIEW_SEED_TIMESTAMP = new Date("2026-03-29T21:30:00+09:00").getTime();
 
 export const PREVIEW_POSTS: Post[] = [
   {
@@ -100,8 +100,8 @@ export const PREVIEW_POSTS: Post[] = [
     is_published: false,
     revision_number: 3,
     deleted_at: null,
-    created_at: new Date(now - 1000 * 60 * 60 * 24).toISOString(),
-    updated_at: new Date(now - 1000 * 60 * 25).toISOString(),
+    created_at: new Date(PREVIEW_SEED_TIMESTAMP - 1000 * 60 * 60 * 24).toISOString(),
+    updated_at: new Date(PREVIEW_SEED_TIMESTAMP - 1000 * 60 * 25).toISOString(),
   },
   {
     id: "preview-post-2",
@@ -120,8 +120,8 @@ export const PREVIEW_POSTS: Post[] = [
     is_published: false,
     revision_number: 2,
     deleted_at: null,
-    created_at: new Date(now - 1000 * 60 * 60 * 48).toISOString(),
-    updated_at: new Date(now - 1000 * 60 * 60 * 4).toISOString(),
+    created_at: new Date(PREVIEW_SEED_TIMESTAMP - 1000 * 60 * 60 * 48).toISOString(),
+    updated_at: new Date(PREVIEW_SEED_TIMESTAMP - 1000 * 60 * 60 * 4).toISOString(),
   },
 ];
 
@@ -137,7 +137,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
         content:
           "현재 DraftDeck은 상태와 서버 로직이 한 훅에 뭉쳐 있어서 설명은 가능하지만 확장 신호가 약하다.",
         content_length: 59,
-        created_at: new Date(now - 1000 * 60 * 80).toISOString(),
+        created_at: new Date(PREVIEW_SEED_TIMESTAMP - 1000 * 60 * 80).toISOString(),
       },
     ],
     revisions: [
@@ -151,7 +151,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
         trigger: DraftRevisionTrigger.AI_APPLY,
         ai_run_id: "preview-airun-1",
         source_id: "preview-source-1",
-        created_at: new Date(now - 1000 * 60 * 25).toISOString(),
+        created_at: new Date(PREVIEW_SEED_TIMESTAMP - 1000 * 60 * 25).toISOString(),
       },
       {
         id: "preview-revision-2",
@@ -163,7 +163,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
         trigger: DraftRevisionTrigger.AUTOSAVE,
         ai_run_id: null,
         source_id: null,
-        created_at: new Date(now - 1000 * 60 * 90).toISOString(),
+        created_at: new Date(PREVIEW_SEED_TIMESTAMP - 1000 * 60 * 90).toISOString(),
       },
     ],
     aiRuns: [
@@ -180,7 +180,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
           "현재 DraftDeck은 상태와 서버 로직이 한 훅에 뭉쳐 있어서 설명은 가능하지만 확장 신호가 약하다.",
         source_id: "preview-source-1",
         error_message: null,
-        created_at: new Date(now - 1000 * 60 * 30).toISOString(),
+        created_at: new Date(PREVIEW_SEED_TIMESTAMP - 1000 * 60 * 30).toISOString(),
       },
     ],
     revisionCount: 2,
@@ -198,7 +198,7 @@ const PREVIEW_ARTIFACTS: Record<string, DraftArtifacts> = {
         trigger: DraftRevisionTrigger.AUTOSAVE,
         ai_run_id: null,
         source_id: null,
-        created_at: new Date(now - 1000 * 60 * 60 * 4).toISOString(),
+        created_at: new Date(PREVIEW_SEED_TIMESTAMP - 1000 * 60 * 60 * 4).toISOString(),
       },
     ],
     aiRuns: [],
@@ -225,8 +225,8 @@ const GUEST_DEMO_POSTS: Post[] = [
     is_published: false,
     revision_number: 1,
     deleted_at: null,
-    created_at: new Date(now - 1000 * 60 * 45).toISOString(),
-    updated_at: new Date(now - 1000 * 60 * 15).toISOString(),
+    created_at: new Date(PREVIEW_SEED_TIMESTAMP - 1000 * 60 * 45).toISOString(),
+    updated_at: new Date(PREVIEW_SEED_TIMESTAMP - 1000 * 60 * 15).toISOString(),
   },
 ];
 
@@ -244,7 +244,7 @@ const GUEST_DEMO_ARTIFACTS: Record<string, DraftArtifacts> = {
         trigger: DraftRevisionTrigger.CREATE,
         ai_run_id: null,
         source_id: null,
-        created_at: new Date(now - 1000 * 60 * 15).toISOString(),
+        created_at: new Date(PREVIEW_SEED_TIMESTAMP - 1000 * 60 * 15).toISOString(),
       },
     ],
     aiRuns: [],
