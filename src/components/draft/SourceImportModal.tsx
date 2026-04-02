@@ -75,6 +75,7 @@ export default function SourceImportModal({
             </p>
           </div>
           <textarea
+            aria-label="가져올 자료"
             className="app-scrollbar h-56 w-full resize-none rounded-[28px] border border-[color:var(--app-line)] bg-white p-5 text-sm leading-7 text-[var(--app-ink)] placeholder:text-[color:rgba(102,112,133,0.58)] focus:outline-none"
             placeholder="기존 메모나 자료를 붙여넣으세요. 예: 글 목적, 핵심 논점, 섹션 순서, 인용 메모"
             value={sourceInput}

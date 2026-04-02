@@ -63,6 +63,7 @@ const Editor = ({ content, onChange, onSelectionChange }: EditorProps) => {
     <div className="w-full">
       <textarea
         ref={textareaRef}
+        aria-label="문서 본문"
         className="app-scrollbar h-[clamp(28rem,62vh,44rem)] w-full resize-none overflow-y-auto border-none bg-transparent p-0 pr-2 text-[1rem] leading-8 tracking-[-0.01em] text-[var(--app-ink)] placeholder:text-[color:rgba(102,112,133,0.56)] focus:outline-none md:text-[1.04rem] md:leading-9"
         placeholder="마크다운으로 자유롭게 작성하세요... (수식 지원: $E=mc^2$)"
         value={content}
