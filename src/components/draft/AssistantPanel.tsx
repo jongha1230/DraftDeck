@@ -114,6 +114,7 @@ export default function AssistantPanel({
       </button>
 
       <aside
+        aria-label="도우미 패널"
         className={`fixed inset-y-0 right-0 z-40 flex w-full max-w-[20rem] flex-col overflow-hidden border-y-0 border-l border-r-0 border-[color:var(--app-line)] bg-[rgba(250,251,253,0.98)] px-4 py-5 shadow-[0_20px_80px_-48px_rgba(15,23,42,0.4)] transition-transform duration-300 xl:absolute xl:inset-y-0 xl:right-0 xl:z-20 xl:w-[18.5rem] xl:max-w-none 2xl:w-[19rem] ${
           isOpen
             ? "pointer-events-auto translate-x-0"
