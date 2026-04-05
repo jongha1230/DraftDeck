@@ -3,38 +3,20 @@
 import {
   deleteDraftRevisionAction,
   getDraftArtifactsAction,
-  recordDraftSourceAction,
-  runAIAction,
 } from "@/app/actions";
 import {
   EMPTY_DRAFT_ARTIFACTS,
   buildMarkdownExportFilename,
 } from "@/lib/drafts/records";
-import {
-  createPreviewAIResult,
-  createPreviewAIRun,
-  createPreviewSource,
-  type PreviewSessionVariant,
-} from "@/lib/ui-preview";
+import { type PreviewSessionVariant } from "@/lib/ui-preview";
 import { useAutosaveQueue } from "@/hooks/useAutosaveQueue";
+import { useDraftAiFlow } from "@/hooks/useDraftAiFlow";
 import { useDraftPostLifecycle } from "@/hooks/useDraftPostLifecycle";
+import { useDraftSourceImportFlow } from "@/hooks/useDraftSourceImportFlow";
 import { usePreviewSession } from "@/hooks/usePreviewSession";
 import { useDraftStore } from "@/store/useDraftStore";
-import {
-  AIActionType,
-  DraftRevisionTrigger,
-  DraftSourceKind,
-  Post,
-  PreviewMode,
-} from "@/types";
-import {
-  type ChangeEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { DraftRevisionTrigger, Post, PreviewMode } from "@/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface UseDraftPageControllerParams {
   initialPosts: Post[];
@@ -65,38 +47,20 @@ export function useDraftPageController({
     upsertPost,
     setActivePostId,
     setArtifacts,
-    prependSource,
     prependRevision,
     removeRevision,
-    prependAIRun,
     setIsSaving,
     setIsDirty,
-    setAiLoading,
-    setAiResult,
-    resetAiState,
     pushNotification,
     dismissNotification,
   } = useDraftStore();
 
-  const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewMode>("preview");
-  const [sourcePreviewId, setSourcePreviewId] = useState<string | null>(null);
-  const [sourceInput, setSourceInput] = useState("");
-  const [sourceLabel, setSourceLabel] = useState("붙여넣은 자료");
-  const [sourceKind, setSourceKind] = useState<DraftSourceKind>(
-    DraftSourceKind.PASTE,
-  );
   const [selectionText, setSelectionText] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [isArtifactsLoading, setIsArtifactsLoading] = useState(false);
-  const [isPreviewAiGateOpen, setIsPreviewAiGateOpen] = useState(false);
-  const [hasPreviewAiConsent, setHasPreviewAiConsent] = useState(false);
-  const [pendingPreviewAiAction, setPendingPreviewAiAction] = useState<{
-    action: AIActionType;
-    selection?: string;
-  } | null>(null);
 
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -126,14 +90,6 @@ export function useDraftPageController({
   const activeArtifacts = resolvedActivePostId
     ? resolvedArtifactsByPostId[resolvedActivePostId] ?? EMPTY_DRAFT_ARTIFACTS
     : EMPTY_DRAFT_ARTIFACTS;
-  const sourcePreview =
-    activeArtifacts.sources.find((source) => source.id === sourcePreviewId) ?? null;
-
-  useEffect(() => {
-    if (sourcePreviewId && !sourcePreview) {
-      setSourcePreviewId(null);
-    }
-  }, [sourcePreview, sourcePreviewId]);
 
   const { queueSave } = useAutosaveQueue({
     isPreview,
@@ -144,13 +100,10 @@ export function useDraftPageController({
     upsertPost,
   });
 
-  const syncSelectionText = useCallback(
-    (nextSelection: string) => {
-      const text = nextSelection.trim();
-      setSelectionText(text);
-    },
-    [],
-  );
+  const syncSelectionText = useCallback((nextSelection: string) => {
+    const text = nextSelection.trim();
+    setSelectionText(text);
+  }, []);
 
   const loadArtifacts = useCallback(
     async (postId: string) => {
@@ -228,181 +181,6 @@ export function useDraftPageController({
 
   const handlePreviewClose = () => setIsPreviewOpen(false);
 
-  const runAIActionFlow = async (action: AIActionType, selection?: string) => {
-    if (isAiLoading) return;
-
-    let targetPostId = activePost?.id ?? null;
-
-    if (action === AIActionType.SOURCE_TO_DRAFT && !targetPostId) {
-      await handleCreatePost();
-      targetPostId = useDraftStore.getState().activePostId;
-    }
-
-    const currentPost = targetPostId
-      ? useDraftStore.getState().posts.find((post) => post.id === targetPostId) ?? null
-      : null;
-
-    if (action !== AIActionType.SOURCE_TO_DRAFT && !currentPost) {
-      return;
-    }
-
-    setAiLoading(true);
-    setAiResult(null);
-
-    try {
-      const inputText =
-        action === AIActionType.SOURCE_TO_DRAFT
-          ? sourceInput
-          : selection || currentPost?.content || "";
-
-      let recordedSourceId: string | null = null;
-
-      if (action === AIActionType.SOURCE_TO_DRAFT && targetPostId) {
-        const nextSourceLabel =
-          sourceLabel.trim() ||
-          (sourceKind === DraftSourceKind.FILE ? "업로드한 파일" : "붙여넣은 자료");
-
-        recordedSourceId = await recordSourceForPost(
-          targetPostId,
-          inputText,
-          nextSourceLabel,
-          sourceKind,
-        );
-      }
-
-      if (isPreview) {
-        await new Promise((resolve) => {
-          window.setTimeout(resolve, 320);
-        });
-
-        const text = createPreviewAIResult(action, inputText);
-        const run = createPreviewAIRun({
-          action,
-          postId: targetPostId,
-          text: inputText,
-          outputText: text,
-          selectionText: action === AIActionType.SOURCE_TO_DRAFT ? null : selectionText,
-          sourceId: recordedSourceId,
-        });
-
-        if (targetPostId) {
-          prependAIRun(targetPostId, run);
-        }
-
-        setAiResult({
-          text,
-          action,
-          runId: run.id,
-          sourceId: recordedSourceId,
-        });
-
-        if (action === AIActionType.SOURCE_TO_DRAFT) {
-          setIsSourceModalOpen(false);
-          setSourceInput("");
-          setSourceLabel("붙여넣은 자료");
-          setSourceKind(DraftSourceKind.PASTE);
-        }
-
-        return;
-      }
-
-      const result = await runAIAction({
-        action,
-        text: inputText,
-        postId: targetPostId,
-        selectionText: action === AIActionType.SOURCE_TO_DRAFT ? null : selectionText,
-        sourceId: recordedSourceId,
-      });
-
-      if (result.run?.post_id) {
-        prependAIRun(result.run.post_id, result.run);
-      }
-
-      if (!result.success) {
-        throw new Error(result.error || "AI 응답 실패");
-      }
-
-      setAiResult({
-        text: result.text,
-        action,
-        runId: result.run?.id ?? null,
-        sourceId: recordedSourceId,
-      });
-
-      if (action === AIActionType.SOURCE_TO_DRAFT) {
-        setIsSourceModalOpen(false);
-        setSourceInput("");
-        setSourceLabel("붙여넣은 자료");
-        setSourceKind(DraftSourceKind.PASTE);
-      }
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "요청 처리 중 오류가 발생했습니다.";
-      pushNotification(message, "error", "AI 요청 실패");
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const handleAIAction = async (action: AIActionType, selection?: string) => {
-    if (isPreview && !hasPreviewAiConsent) {
-      setPendingPreviewAiAction({ action, selection });
-      setIsPreviewAiGateOpen(true);
-      return;
-    }
-
-    await runAIActionFlow(action, selection);
-  };
-
-  const handleClosePreviewAiGate = () => {
-    setPendingPreviewAiAction(null);
-    setIsPreviewAiGateOpen(false);
-  };
-
-  const handleContinuePreviewAi = async () => {
-    const pendingAction = pendingPreviewAiAction;
-    if (!pendingAction) {
-      return;
-    }
-
-    setHasPreviewAiConsent(true);
-    setPendingPreviewAiAction(null);
-    setIsPreviewAiGateOpen(false);
-    await runAIActionFlow(pendingAction.action, pendingAction.selection);
-  };
-
-  const recordSourceForPost = useCallback(
-    async (
-      postId: string,
-      inputText: string,
-      nextSourceLabel: string,
-      nextSourceKind: DraftSourceKind,
-    ) => {
-      if (isPreview) {
-        const previewSource = createPreviewSource({
-          postId,
-          label: nextSourceLabel,
-          content: inputText,
-          kind: nextSourceKind,
-        });
-        prependSource(postId, previewSource);
-        return previewSource.id;
-      }
-
-      const savedSource = await recordDraftSourceAction({
-        postId,
-        label: nextSourceLabel,
-        kind: nextSourceKind,
-        content: inputText,
-      });
-      prependSource(postId, savedSource);
-      return savedSource.id;
-    },
-    [isPreview, prependSource],
-  );
-
   const updatePostLocally = useCallback(
     (postId: string, updates: Partial<Post>) => {
       const currentPost = useDraftStore
@@ -420,43 +198,56 @@ export function useDraftPageController({
     [upsertPost],
   );
 
-  const handleApplyAIResult = (text: string) => {
-    if (!activePostId || !aiResult) return;
+  const {
+    canApplySourceToCurrent,
+    handleApplySourceToCurrent,
+    handleCloseImport,
+    handleCloseSourcePreview,
+    handleFileUpload,
+    handleOpenImport,
+    handleOpenSourcePreview,
+    isSourceModalOpen,
+    recordCurrentSource,
+    setSourceInput,
+    sourceInput,
+    sourceKind,
+    sourceLabel,
+    sourcePreview,
+  } = useDraftSourceImportFlow({
+    isPreview,
+    activePost,
+    activePostId,
+    activeArtifacts,
+    isPendingCreatePostId,
+    queueSave,
+    updatePostLocally,
+    pushNotification,
+    openAssistantPanel,
+  });
 
-    const nextTrigger =
-      aiResult.action === AIActionType.SOURCE_TO_DRAFT
-        ? DraftRevisionTrigger.SOURCE_IMPORT
-        : DraftRevisionTrigger.AI_APPLY;
-
-    updatePostLocally(activePostId, { content: text });
-    syncSelectionText("");
-    queueSave(activePostId, {
-      trigger: nextTrigger,
-      aiRunId: aiResult.runId,
-      sourceId: aiResult.sourceId,
-    });
-    resetAiState();
-  };
-
-  const handleAppendAIResult = (text: string) => {
-    if (!activePost || !activePostId || !aiResult) return;
-
-    const nextTrigger =
-      aiResult.action === AIActionType.SOURCE_TO_DRAFT
-        ? DraftRevisionTrigger.SOURCE_IMPORT
-        : DraftRevisionTrigger.AI_APPEND;
-
-    updatePostLocally(activePostId, {
-      content: `${activePost.content}\n\n${text}`,
-    });
-    syncSelectionText("");
-    queueSave(activePostId, {
-      trigger: nextTrigger,
-      aiRunId: aiResult.runId,
-      sourceId: aiResult.sourceId,
-    });
-    resetAiState();
-  };
+  const {
+    handleAIAction,
+    handleApplyAIResult,
+    handleAppendAIResult,
+    handleCloseAIResult,
+    handleClosePreviewAiGate,
+    handleContinuePreviewAi,
+    isPreviewAiGateOpen,
+    pendingPreviewAiAction,
+  } = useDraftAiFlow({
+    isPreview,
+    activePost,
+    activePostId,
+    selectionText,
+    sourceInput,
+    handleCreatePost,
+    recordCurrentSource,
+    handleCloseImport,
+    queueSave,
+    updatePostLocally,
+    syncSelectionText,
+    pushNotification,
+  });
 
   const handleTitleChange = (title: string) => {
     if (!activePostId) return;
@@ -476,64 +267,6 @@ export function useDraftPageController({
       return;
     }
     queueSave(activePostId, { trigger: DraftRevisionTrigger.AUTOSAVE });
-  };
-
-  const handleSourceInputChange = (value: string) => {
-    setSourceInput(value);
-    if (sourceKind !== DraftSourceKind.FILE) {
-      setSourceLabel("붙여넣은 자료");
-      setSourceKind(DraftSourceKind.PASTE);
-    }
-  };
-
-  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.name.endsWith(".txt") && !file.name.endsWith(".md")) {
-      pushNotification(
-        "텍스트(.txt) 또는 마크다운(.md) 파일만 가져올 수 있습니다.",
-        "error",
-        "지원하지 않는 파일 형식",
-      );
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      const text = loadEvent.target?.result;
-      if (typeof text === "string") {
-        setSourceInput(text);
-        setSourceLabel(file.name);
-        setSourceKind(DraftSourceKind.FILE);
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleOpenImport = () => {
-    setIsSourceModalOpen(true);
-    openAssistantPanel();
-  };
-
-  const handleCloseImport = () => {
-    setIsSourceModalOpen(false);
-    setSourceInput("");
-    setSourceLabel("붙여넣은 자료");
-    setSourceKind(DraftSourceKind.PASTE);
-  };
-
-  const handleOpenSourcePreview = (sourceId: string) => {
-    setSourcePreviewId(sourceId);
-    openAssistantPanel();
-  };
-
-  const handleCloseSourcePreview = () => {
-    setSourcePreviewId(null);
-  };
-
-  const handleCloseAIResult = () => {
-    resetAiState();
   };
 
   const handleExportMarkdown = () => {
@@ -588,44 +321,6 @@ export function useDraftPageController({
     }
   };
 
-  const handleApplySourceToCurrent = async () => {
-    if (!activePostId || !activePost || !sourceInput.trim()) return;
-    if (isPendingCreatePostId(activePostId)) {
-      pushNotification(
-        "문서 생성이 끝난 뒤 다시 시도해 주세요.",
-        "error",
-        "문서 준비 중",
-      );
-      return;
-    }
-
-    try {
-      const nextSourceLabel =
-        sourceLabel.trim() ||
-        (sourceKind === DraftSourceKind.FILE ? "업로드한 파일" : "붙여넣은 자료");
-      const sourceId = await recordSourceForPost(
-        activePostId,
-        sourceInput,
-        nextSourceLabel,
-        sourceKind,
-      );
-
-      updatePostLocally(activePostId, { content: sourceInput });
-      queueSave(activePostId, {
-        trigger: DraftRevisionTrigger.SOURCE_IMPORT,
-        sourceId,
-      });
-      pushNotification("가져온 자료를 현재 문서에 반영했습니다.", "success", "자료 적용");
-      handleCloseImport();
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "자료를 현재 문서에 적용하지 못했습니다. 잠시 후 다시 시도해 주세요.";
-      pushNotification(message, "error", "자료 적용 실패");
-    }
-  };
-
   return {
     posts: resolvedPosts,
     deletedPosts: resolvedDeletedPosts,
@@ -643,19 +338,18 @@ export function useDraftPageController({
     sourceInput,
     sourceLabel,
     sourceKind,
-    canApplySourceToCurrent:
-      Boolean(activePost) && !isPendingCreatePostId(activePostId),
+    canApplySourceToCurrent,
     isSidebarOpen,
     isAssistantOpen,
     isArtifactsLoading,
     isSourceModalOpen,
     isPreviewAiGateOpen,
-    pendingPreviewAiAction: pendingPreviewAiAction?.action ?? null,
+    pendingPreviewAiAction,
     sourcePreview,
     isPreviewOpen,
     previewMode,
     contentScrollRef,
-    setSourceInput: handleSourceInputChange,
+    setSourceInput,
     setPreviewMode,
     dismissNotification,
     openAssistantPanel,
