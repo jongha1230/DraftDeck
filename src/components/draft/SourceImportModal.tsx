@@ -51,7 +51,8 @@ export default function SourceImportModal({
             </h3>
             <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">
               메모나 Markdown 파일을 붙여넣으면 초안 뼈대를 빠르게 만들 수
-              있습니다. 생성에 사용한 자료는 문서 기록에도 남깁니다.
+              있습니다. 생성에 사용한 자료는 문서 기록에도 남깁니다. 파일
+              업로드는 `.txt`, `.md` 형식과 1MB 이하 텍스트 파일만 지원합니다.
             </p>
           </div>
           <button

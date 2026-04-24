@@ -2,8 +2,15 @@ import { UI_PREVIEW_ENABLED } from "@/lib/ui-preview";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+function hasProxySupabaseEnv() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  );
+}
+
 export async function updateSession(request: NextRequest) {
-  if (UI_PREVIEW_ENABLED) {
+  if (UI_PREVIEW_ENABLED || !hasProxySupabaseEnv()) {
     return NextResponse.next({
       request,
     });

@@ -1,6 +1,11 @@
 "use client";
 
 import { recordDraftSourceAction } from "@/app/actions";
+import {
+  normalizeSourceImportText,
+  SOURCE_IMPORT_MESSAGES,
+  validateSourceImportFile,
+} from "@/lib/drafts/source-import";
 import { createPreviewSource } from "@/lib/ui-preview";
 import { useDraftStore } from "@/store/useDraftStore";
 import {
@@ -135,27 +140,42 @@ export function useDraftSourceImportFlow({
   const handleFileUpload = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      if (!file) return;
+      if (!file) {
+        return;
+      }
 
-      if (!file.name.endsWith(".txt") && !file.name.endsWith(".md")) {
+      const validation = validateSourceImportFile(file);
+      if (!validation.ok) {
         pushNotification(
-          "텍스트(.txt) 또는 마크다운(.md) 파일만 가져올 수 있습니다.",
+          validation.message,
           "error",
-          "지원하지 않는 파일 형식",
+          validation.title,
         );
+        event.target.value = "";
         return;
       }
 
       const reader = new FileReader();
       reader.onload = (loadEvent) => {
-        const text = loadEvent.target?.result;
-        if (typeof text === "string") {
-          setSourceInput(text);
-          setSourceLabel(file.name);
-          setSourceKind(DraftSourceKind.FILE);
+        const parsed = normalizeSourceImportText(loadEvent.target?.result);
+        if (!parsed.ok) {
+          pushNotification(parsed.message, "error", parsed.title);
+          return;
         }
+
+        setSourceInput(parsed.text);
+        setSourceLabel(file.name);
+        setSourceKind(DraftSourceKind.FILE);
+      };
+      reader.onerror = () => {
+        pushNotification(
+          SOURCE_IMPORT_MESSAGES.readError,
+          "error",
+          "파일 읽기 실패",
+        );
       };
       reader.readAsText(file);
+      event.target.value = "";
     },
     [pushNotification],
   );
