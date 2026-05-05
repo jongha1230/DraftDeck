@@ -74,7 +74,7 @@ export const GUEST_DEMO_USER: PreviewUser = {
   badgeLabel: "Guest Demo",
   studioLabel: "Local demo session",
   helperText:
-    "게스트 데모는 브라우저에만 저장되고 AI 결과는 예시 preview로 동작합니다.",
+    "게스트 데모는 브라우저에만 저장되고 AI 결과는 예시 결과로 동작합니다.",
   showLoginCta: true,
 };
 
@@ -220,7 +220,7 @@ const GUEST_DEMO_POSTS: Post[] = [
 1. 자료 가져오기
 2. 초안 생성 실행
 3. Apply로 현재 문서에 반영
-4. 오른쪽에서 revision 기록 확인
+4. 오른쪽에서 버전 기록 확인
 `,
     is_published: false,
     revision_number: 1,
@@ -426,7 +426,7 @@ export function createPreviewAIResult(action: AIActionType, input: string): stri
   const trimmed = input.trim();
 
   if (!trimmed) {
-    return "입력된 내용이 아직 없어 preview 결과를 만들 수 없습니다.";
+    return "입력된 내용이 아직 없어 예시 결과를 만들 수 없습니다.";
   }
 
   switch (action) {
@@ -435,7 +435,7 @@ export function createPreviewAIResult(action: AIActionType, input: string): stri
     case AIActionType.DEVELOPER_REWRITE:
       return `## 개발자 톤으로 다듬은 초안\n\n${trimmed.slice(0, 240)}\n\n이 문장은 구조를 더 명확히 하고, 모호한 표현을 줄이는 방향으로 정리할 수 있다.`;
     case AIActionType.TRANSLATE:
-      return `## 자연스러운 번역 preview\n\n${trimmed.slice(0, 220)}\n\n문맥 유지 중심으로 번역 결과를 확인하는 로컬 preview다.`;
+      return `## 자연스러운 번역 예시\n\n${trimmed.slice(0, 220)}\n\n문맥 유지 중심으로 번역 결과를 확인하는 로컬 예시다.`;
     case AIActionType.SOURCE_TO_DRAFT:
       return `# 초안 구조 제안\n\n## 핵심 배경\n\n${trimmed.slice(0, 220)}\n\n## 권장 구성\n\n1. 문제 정의\n2. 현재 제약\n3. 해결 접근\n4. 검증 계획\n\n## 시작 문단\n\n입력한 자료를 기반으로 초안의 뼈대를 먼저 세우고, 이후 편집 화면에서 세부 문장을 채우는 흐름을 가정했다.`;
     default:

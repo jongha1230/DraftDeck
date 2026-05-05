@@ -5,7 +5,7 @@ import { CheckCircle2, FileText, PlayCircle } from "lucide-react";
 const CARD_POINTS = [
   "붙여넣은 자료와 파일을 초안 시작점으로 남길 수 있습니다.",
   "선택한 문장만 요약, 번역, 리라이트하고 실행 기록을 확인할 수 있습니다.",
-  "자동 저장, revision 기록, Markdown export가 한 흐름 안에 있습니다.",
+  "자동 저장, 버전 기록, 마크다운 내보내기가 한 흐름 안에 있습니다.",
 ];
 
 const DESKTOP_FLOW = [
@@ -24,7 +24,7 @@ const DESKTOP_FLOW = [
   {
     label: "Flow 03",
     title: "기록을 남기며 마무리",
-    description: "revision 기록과 export가 같은 작업 화면 안에서 이어집니다.",
+    description: "버전 기록과 내보내기가 같은 작업 화면 안에서 이어집니다.",
   },
 ] as const;
 
@@ -43,7 +43,7 @@ export default function LoginPage() {
               </h1>
               <p className="mt-5 max-w-xl text-base leading-8 text-[var(--app-muted)]">
                 로그인 후에는 자료를 붙여넣고 초안 구조를 세운 뒤, 선택 기반
-                리라이트와 Markdown export까지 한 흐름으로 이어집니다.
+                리라이트와 마크다운 내보내기까지 한 흐름으로 이어집니다.
               </p>
             </div>
 
@@ -51,7 +51,7 @@ export default function LoginPage() {
               <div className="flex items-center justify-between gap-4 border-b border-[color:var(--app-line)] pb-4">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--app-muted)]">
-                    Workflow
+                    작업 흐름
                   </p>
                   <h3 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-[var(--app-ink)]">
                     로그인 후 바로 이어지는 3단계
@@ -106,7 +106,7 @@ export default function LoginPage() {
               바로 시작
             </h2>
             <p className="mt-3 text-sm leading-7 text-[var(--app-muted)] sm:text-base">
-              Google 계정으로 로그인하면 초안 시작, 선택 리라이트, revision
+              Google 계정으로 로그인하면 초안 시작, 선택 리라이트, 버전 기록
               확인이 있는 작업 화면으로 바로 들어갑니다.
             </p>
 
@@ -139,7 +139,7 @@ export default function LoginPage() {
               </div>
 
               <p className="text-xs leading-6 text-[var(--app-muted)]">
-                게스트 데모는 브라우저에만 저장되고 AI 결과는 예시 preview로
+                게스트 데모는 브라우저에만 저장되고 AI 결과는 예시 결과로
                 동작합니다.
               </p>
             </div>
